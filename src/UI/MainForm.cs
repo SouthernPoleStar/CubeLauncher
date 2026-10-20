@@ -285,6 +285,14 @@ namespace CubeLauncher.UI
                         resultId = ForgeService.Install(Config, Versions, choice.Minecraft, choice.LoaderVersion, progress);
                     else if (choice.Loader == "quilt")
                         resultId = QuiltService.Install(Config, Versions, choice.Minecraft, choice.LoaderVersion, progress);
+                    else if (choice.Loader == "neoforge")
+                    {
+                        NeoForgeBuild build = new NeoForgeBuild();
+                        build.Minecraft = choice.Minecraft;
+                        build.Version = choice.LoaderVersion;
+                        build.Artifact = choice.Minecraft == "1.20.1" ? "forge" : "neoforge";
+                        resultId = NeoForgeService.Install(Config, Versions, choice.Minecraft, build, progress);
+                    }
                     else
                     {
                         Versions.InstallVanilla(choice.Minecraft, progress);

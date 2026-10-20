@@ -237,6 +237,12 @@ namespace CubeLauncher.Core
                 int index = id.IndexOf("-forge-", StringComparison.OrdinalIgnoreCase);
                 if (index >= 0) return id.Substring(index + 7);
             }
+            if (string.Equals(loader, "neoforge", StringComparison.OrdinalIgnoreCase))
+            {
+                if (id.StartsWith("neoforge-", StringComparison.OrdinalIgnoreCase)) return id.Substring("neoforge-".Length);
+                int index = id.IndexOf("-neoforge-", StringComparison.OrdinalIgnoreCase);
+                if (index >= 0) return id.Substring(index + 10);
+            }
             if (string.Equals(loader, "fabric", StringComparison.OrdinalIgnoreCase) && id.StartsWith("fabric-loader-", StringComparison.OrdinalIgnoreCase))
             {
                 string rest = id.Substring("fabric-loader-".Length);

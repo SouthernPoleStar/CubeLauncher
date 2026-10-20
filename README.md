@@ -22,6 +22,7 @@
 - **模组加载器**
   - Fabric：从 Fabric Meta 获取 Loader 列表，自动安装 Loader、Intermediary 与依赖。
   - Forge：从 Forge Maven 获取全部构建，下载官方安装器并通过 `--mirror` 让安装器优先使用 BMCLAPI。
+  - NeoForge：从 NeoForge Maven 获取版本，优先使用 BMCLAPI，自动运行安装器并处理 20.4 的 JarJarFileSystems 镜像缺失。
   - Quilt：从 Quilt Meta 安装，兼容 Fabric 模组生态。
 - **两大模组站**
   - Modrinth / CurseForge 搜索、项目详情、版本文件选择、一键安装；CurseForge 镜像不可用时自动使用 CFWidget 按 slug 回退。
@@ -46,6 +47,7 @@
 | 客户端、依赖库 | BMCLAPI | Mojang / Maven |
 | 资源对象 | BMCLAPI `/assets` | Mojang `resources.download.minecraft.net` |
 | Forge 安装器 / 库 | BMCLAPI Forge / Maven | Forge 官方 Maven |
+| NeoForge 安装器 / 库 | BMCLAPI Maven | NeoForge 官方 Maven |
 | Fabric Meta / 库 | BMCLAPI `/fabric-meta`、`/maven` | Fabric 官方 |
 | CurseForge / Modrinth | MCIM (`mod.mcimirror.top`) | Modrinth 官方；CurseForge 使用 CFWidget 或自定义 API Key |
 | Java | 清华 TUNA Adoptium | Adoptium API |
@@ -130,6 +132,8 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
 - CurseForge 的 CFWidget 回退不返回前置依赖信息；启动器会自动补装 Fabric API，但 Architectury、Cloth Config 等其他前置仍需手动安装。
 - Fabric 启动前自动补装 Fabric API 仅针对检测到“非 Sodium”模组且没有 API 的情况；如果手动安装了错误版本，请删除旧 API 后重试。
 - Forge 安装依赖官方安装器执行映射合并与二进制补丁；安装器本身从 BMCLAPI 下载，库优先走 BMCLAPI，失败时回退官方。
+- NeoForge 20.4.x 的 JarJarFileSystems 0.4.0 在 BMCLAPI 缺失，启动器会自动把安装器内的依赖替换为兼容的 0.4.1；其他版本直接使用镜像。已实测 1.20.4 + NeoForge 20.4.237 启动成功。
+- NeoForge 1.20.1 属于旧的 `net.neoforged:forge` 47.1 构建；BMCLAPI 可能没有该安装器，此时需要能访问 NeoForge 官方 Maven。1.20.2+ 走 `net.neoforged:neoforge`，推荐 1.20.4 / 1.21.1。
 - 资源文件数量约 3000+，首次安装需要几分钟；之后会按 SHA1 校验并跳过。
 - 仅支持 Windows。Java 版本按版本 JSON 的 `javaVersion.majorVersion` 选择（通常 8 / 17 / 21）。
 

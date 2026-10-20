@@ -394,8 +394,8 @@ namespace CubeLauncher.UI
 
         public InstallChoice Result;
 
-        private static readonly string[] LoaderNames = new string[] { "原版", "Fabric", "Forge", "Quilt" };
-        private static readonly string[] LoaderKeys = new string[] { "vanilla", "fabric", "forge", "quilt" };
+        private static readonly string[] LoaderNames = new string[] { "原版", "Fabric", "Forge", "Quilt", "NeoForge" };
+        private static readonly string[] LoaderKeys = new string[] { "vanilla", "fabric", "forge", "quilt", "neoforge" };
 
         public InstallDialog(MainForm main, string baseVersion) : base("安装新版本", "选择游戏版本与模组加载器，全部资源自动下载", 700, 566)
         {
@@ -404,14 +404,14 @@ namespace CubeLauncher.UI
 
             Label baseLabel = MakeLabel("Minecraft 版本", 28, 82, 200, Theme.TextSoft, 8.2f, true);
             _baseVersion = new DarkComboBox();
-            _baseVersion.SetBounds(28, 104, 300, 40);
+            _baseVersion.SetBounds(28, 104, 280, 40);
             _baseVersion.SelectedIndexChanged += delegate { ReloadLoaderVersions(); };
             Controls.Add(_baseVersion);
 
-            Label loaderLabel = MakeLabel("模组加载器", 350, 82, 200, Theme.TextSoft, 8.2f, true);
+            Label loaderLabel = MakeLabel("模组加载器", 328, 82, 200, Theme.TextSoft, 8.2f, true);
             _loader = new SegmentedControl();
             _loader.Options = LoaderNames;
-            _loader.SetBounds(350, 104, 318, 40);
+            _loader.SetBounds(328, 104, 340, 40);
             _loader.SelectedIndexChanged += delegate { ReloadLoaderVersions(); };
             Controls.Add(_loader);
 
@@ -447,7 +447,7 @@ namespace CubeLauncher.UI
             source.Font = Theme.Font(8f, FontStyle.Bold);
             source.TextAlign = ContentAlignment.MiddleLeft;
             source.SetBounds(28, 404, 640, 22);
-            source.Text = "下载策略    BMCLAPI 游戏与 Forge    ·    MCIM 模组    ·    TUNA Java";
+            source.Text = "下载策略    BMCLAPI 游戏 / Forge / NeoForge    ·    MCIM 模组    ·    TUNA Java";
             Controls.Add(source);
 
             _cancel = new AccentButton();
@@ -539,9 +539,11 @@ namespace CubeLauncher.UI
             {
                 List<LoaderBuild> builds = null;
                 List<ForgeBuild> forgeBuilds = null;
+                List<NeoForgeBuild> neoBuilds = null;
                 if (loader == "fabric") builds = FabricService.Loaders(_main.Config, mc);
                 else if (loader == "quilt") builds = QuiltService.Loaders(_main.Config, mc);
                 else if (loader == "forge") forgeBuilds = ForgeService.LoadVersions(_main.Config, mc);
+                else if (loader == "neoforge") neoBuilds = NeoForgeService.LoadVersions(_main.Config, mc);
                 Ui.Post(this, delegate
                 {
                     if (token != _request) return;
@@ -554,6 +556,17 @@ namespace CubeLauncher.UI
                             return;
                         }
                         for (int i = 0; i < forgeBuilds.Count; i++) _loaderVersion.Items.Add(forgeBuilds[i]);
+                        _loaderVersion.SelectedIndex = 0;
+                    }
+                    else if (loader == "neoforge")
+                    {
+                        if (neoBuilds == null || neoBuilds.Count == 0)
+                        {
+                            _summary.Text = "没有找到 NeoForge " + mc + " 的版本";
+                            _hint.Text = "NeoForge 通常从 Minecraft 1.20.2 起提供；1.20.1 使用旧版 47.1 构建。\n该版本可能尚未支持，请尝试其他版本。";
+                            return;
+                        }
+                        for (int i = 0; i < neoBuilds.Count; i++) _loaderVersion.Items.Add(neoBuilds[i]);
                         _loaderVersion.SelectedIndex = 0;
                     }
                     else
@@ -589,13 +602,16 @@ namespace CubeLauncher.UI
                 return;
             }
             object selected = _loaderVersion.SelectedItem;
-            string version = selected == null ? "" : (selected is LoaderBuild ? ((LoaderBuild)selected).Version : (selected is ForgeBuild ? ((ForgeBuild)selected).Version : selected.ToString()));
+            string version = selected == null ? "" : (selected is LoaderBuild ? ((LoaderBuild)selected).Version : (selected is ForgeBuild ? ((ForgeBuild)selected).Version : (selected is NeoForgeBuild ? ((NeoForgeBuild)selected).Version : selected.ToString())));
             _summary.Text = baseEntry.Id + "  ·  " + LoaderNames[loaderIndex] + " " + version;
-            _hint.Text = loaderIndex == 1
-                ? "Fabric 安装快速、兼容性好，适合大多数优化模组与轻量整合。\n安装时会自动下载 Fabric Loader、Intermediary 映射与基础库。"
-                : (loaderIndex == 2
-                    ? "Forge 拥有庞大的模组生态，适合大型整合包。\n安装器会执行映射合并与二进制补丁，首次安装可能需要几分钟。"
-                    : "Quilt 兼容 Fabric 生态，同时提供更现代的加载器特性。\n安装时会自动下载 Quilt Loader 与依赖。");
+            if (loaderIndex == 1)
+                _hint.Text = "Fabric 安装快速、兼容性好，适合大多数优化模组与轻量整合。\n安装时会自动下载 Fabric Loader、Intermediary 映射与基础库。";
+            else if (loaderIndex == 2)
+                _hint.Text = "Forge 拥有庞大的模组生态，适合大型整合包。\n安装器会执行映射合并与二进制补丁，首次安装可能需要几分钟。";
+            else if (loaderIndex == 3)
+                _hint.Text = "Quilt 兼容 Fabric 生态，同时提供更现代的加载器特性。\n安装时会自动下载 Quilt Loader 与依赖。";
+            else
+                _hint.Text = "NeoForge 是 Forge 的现代分支，适合 1.20.2+ 的新版本模组生态。\n安装器会执行映射合并与二进制补丁，首次安装可能需要几分钟。";
         }
 
         private void Accept()
@@ -615,6 +631,7 @@ namespace CubeLauncher.UI
                 }
                 if (selected is LoaderBuild) loaderVersion = ((LoaderBuild)selected).Version;
                 else if (selected is ForgeBuild) loaderVersion = ((ForgeBuild)selected).Version;
+                else if (selected is NeoForgeBuild) loaderVersion = ((NeoForgeBuild)selected).Version;
             }
             Result = new InstallChoice();
             Result.Minecraft = baseEntry.Id;

@@ -112,6 +112,24 @@ namespace CubeLauncher.Core
             return Urls("https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml", mirrorFirst);
         }
 
+        public static List<string> NeoForgeMetadata(bool mirrorFirst, string artifact)
+        {
+            string official = "https://maven.neoforged.net/releases/net/neoforged/" + artifact + "/maven-metadata.xml";
+            List<string> urls = new List<string>();
+            if (mirrorFirst) urls.Add(BmclApi + "/maven/net/neoforged/" + artifact + "/maven-metadata.xml");
+            urls.Add(official);
+            return urls;
+        }
+
+        public static List<string> NeoForgeInstaller(string version, string artifact, bool mirrorFirst)
+        {
+            string official = "https://maven.neoforged.net/releases/net/neoforged/" + artifact + "/" + version + "/" + artifact + "-" + version + "-installer.jar";
+            List<string> urls = new List<string>();
+            if (mirrorFirst) urls.Add(BmclApi + "/maven/net/neoforged/" + artifact + "/" + version + "/" + artifact + "-" + version + "-installer.jar");
+            urls.Add(official);
+            return urls;
+        }
+
         public static List<string> ForgePromotions(bool mirrorFirst)
         {
             // BMCLAPI does not mirror this small JSON; the official page is normally reachable.

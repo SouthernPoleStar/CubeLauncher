@@ -34,6 +34,7 @@
 | Mojang 版本清单 / 客户端 | 可用（BMCLAPI 优先） |
 | 依赖库 / 资源文件 | 可用（BMCLAPI 优先） |
 | Forge 安装器 / Maven | 可用（BMCLAPI 优先） |
+| NeoForge 安装器 / 库 | 可用（1.20.4 / 1.21.1；20.4 自动修补 JarJar 镜像） |
 | Fabric Meta / Loader | 可用（BMCLAPI 优先） |
 | Java（Temurin） | 可用（清华 TUNA 优先） |
 | 微软登录 | 可用（设备代码流程） |
