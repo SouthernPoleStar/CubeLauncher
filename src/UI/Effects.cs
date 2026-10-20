@@ -52,7 +52,7 @@ namespace CubeLauncher.UI
         {
             if (Parent == null) return;
             Bounds = new Rectangle(0, 0, Parent.ClientSize.Width, Parent.ClientSize.Height);
-            _alpha = 0.86f;
+            _alpha = 0.32f;
             Visible = true;
             BringToFront();
             _timer.Stop();

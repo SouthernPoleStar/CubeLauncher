@@ -32,6 +32,7 @@ namespace CubeLauncher.UI
         public event Action DataChanged;
         private PageTransition _transition;
         private Timer _windowFade;
+        private Timer _pageSlide;
 
         public MainForm()
         {
@@ -215,12 +216,45 @@ namespace CubeLauncher.UI
             bool changed = _page != page;
             _page = page;
             Log.Info("切换到页面 " + page);
-            for (int i = 0; i < _views.Length; i++) _views[i].Visible = i == (int)page;
+            for (int i = 0; i < _views.Length; i++)
+            {
+                _views[i].Visible = i == (int)page;
+                if (i != (int)page) _views[i].Dock = DockStyle.Fill;
+            }
             _sidebar.SetPage((int)page);
             _topBar.SetPage((int)page);
             BaseView view = _views[(int)page];
             if (view != null) view.OnShown();
+            if (changed) AnimatePage(view);
             if (changed && _transition != null) _transition.Play();
+        }
+
+        private void AnimatePage(BaseView view)
+        {
+            if (view == null || _viewHost.ClientSize.Width <= 0 || _viewHost.ClientSize.Height <= 0) return;
+            if (_pageSlide != null) { _pageSlide.Stop(); _pageSlide.Dispose(); _pageSlide = null; }
+            view.Dock = DockStyle.None;
+            view.Bounds = new Rectangle(0, 14, _viewHost.ClientSize.Width, _viewHost.ClientSize.Height);
+            view.BringToFront();
+            int elapsed = 0;
+            _pageSlide = new Timer();
+            _pageSlide.Interval = 16;
+            _pageSlide.Tick += delegate
+            {
+                elapsed += 16;
+                float t = Math.Min(1f, elapsed / 320f);
+                float eased = Motion.EaseOutCubic(t);
+                view.Top = (int)Math.Round(14 * (1f - eased));
+                if (t >= 1f)
+                {
+                    _pageSlide.Stop();
+                    _pageSlide.Dispose();
+                    _pageSlide = null;
+                    view.Top = 0;
+                    view.Dock = DockStyle.Fill;
+                }
+            };
+            _pageSlide.Start();
         }
 
         public void NavigateHome() { ShowPage(Page.Home); }
@@ -514,12 +548,33 @@ namespace CubeLauncher.UI
             private readonly IconKind[] _icons = new IconKind[] { IconKind.Home, IconKind.Layers, IconKind.Puzzle, IconKind.User, IconKind.Settings };
             private readonly Timer _glassTimer;
             private float _glassPhase;
+            private float _indicatorY;
+            private float _indicatorFrom;
+            private float _indicatorTo;
+            private float _indicatorProgress;
+            private readonly Timer _indicatorTimer;
 
             public Sidebar(MainForm main)
             {
                 _main = main;
                 Width = 218;
                 BackColor = Theme.Sidebar;
+                _indicatorY = 124;
+                _indicatorFrom = 124;
+                _indicatorTo = 124;
+                _indicatorTimer = new Timer();
+                _indicatorTimer.Interval = 16;
+                _indicatorTimer.Tick += delegate
+                {
+                    _indicatorProgress += 16f / 380f;
+                    if (_indicatorProgress >= 1f)
+                    {
+                        _indicatorProgress = 1f;
+                        _indicatorTimer.Stop();
+                    }
+                    _indicatorY = _indicatorFrom + (_indicatorTo - _indicatorFrom) * Motion.EaseOutBack(_indicatorProgress, 0.28f);
+                    Invalidate();
+                };
                 for (int i = 0; i < _labels.Length; i++)
                 {
                     NavItem item = new NavItem();
@@ -573,6 +628,7 @@ namespace CubeLauncher.UI
             protected override void Dispose(bool disposing)
             {
                 if (disposing && _glassTimer != null) _glassTimer.Dispose();
+                if (disposing && _indicatorTimer != null) _indicatorTimer.Dispose();
                 base.Dispose(disposing);
             }
 
@@ -587,6 +643,14 @@ namespace CubeLauncher.UI
             public void SetPage(int page)
             {
                 for (int i = 0; i < _nav.Count; i++) _nav[i].Selected = i == page;
+                if (page >= 0 && page < _nav.Count)
+                {
+                    _indicatorFrom = _indicatorY;
+                    _indicatorTo = _nav[page].Top;
+                    _indicatorProgress = 0f;
+                    _indicatorTimer.Stop();
+                    _indicatorTimer.Start();
+                }
             }
 
             public void UpdateState()
@@ -607,6 +671,8 @@ namespace CubeLauncher.UI
                     g.FillEllipse(brush, -90, Height - 220, 300, 300);
                 using (Pen pen = new Pen(Theme.BorderSoft, 1f))
                     g.DrawLine(pen, Width - 1, 0, Width - 1, Height);
+
+                Ui.FillRound(g, new Rectangle(14, (int)Math.Round(_indicatorY), 190, 44), 22, Theme.SecondaryContainer);
 
                 // Logo mark: isometric grass block.
                 DrawCube(g, new Rectangle(24, 26, 38, 38));

@@ -225,11 +225,7 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            if (_selected)
-            {
-                Ui.FillRound(g, rect, 22, Theme.SecondaryContainer);
-            }
-            else if (_hover)
+            if (_hover && !_selected)
             {
                 Ui.FillRound(g, rect, 22, Theme.Alpha(Theme.Text, 8));
             }
@@ -541,6 +537,12 @@ namespace CubeLauncher.UI
     {
         private string[] _options = new string[0];
         private int _selected;
+        private float _slideX;
+        private bool _slideReady;
+        private readonly Timer _slideTimer;
+        private float _slideFrom;
+        private float _slideTo;
+        private float _slideProgress;
 
         public event EventHandler SelectedIndexChanged;
 
@@ -552,12 +554,25 @@ namespace CubeLauncher.UI
             Height = 36;
             Font = Theme.Font(9f, FontStyle.Bold);
             Cursor = Cursors.Hand;
+            _slideTimer = new Timer();
+            _slideTimer.Interval = 16;
+            _slideTimer.Tick += delegate
+            {
+                _slideProgress += 16f / 340f;
+                if (_slideProgress >= 1f)
+                {
+                    _slideProgress = 1f;
+                    _slideTimer.Stop();
+                }
+                _slideX = _slideFrom + (_slideTo - _slideFrom) * Motion.EaseOutBack(_slideProgress, 0.25f);
+                Invalidate();
+            };
         }
 
         public string[] Options
         {
             get { return _options; }
-            set { _options = value ?? new string[0]; if (_selected >= _options.Length) _selected = 0; Invalidate(); }
+            set { _options = value ?? new string[0]; if (_selected >= _options.Length) _selected = 0; _slideReady = false; Invalidate(); }
         }
 
         public int SelectedIndex
@@ -568,10 +583,47 @@ namespace CubeLauncher.UI
                 if (value < 0 || value >= _options.Length) return;
                 if (_selected == value) return;
                 _selected = value;
+                StartSlide();
                 Invalidate();
                 EventHandler handler = SelectedIndexChanged;
                 if (handler != null) handler(this, EventArgs.Empty);
             }
+        }
+
+        private void StartSlide()
+        {
+            if (_options.Length == 0 || Width <= 8) return;
+            int itemWidth = (Width - 8) / _options.Length;
+            float target = 4 + _selected * itemWidth;
+            if (!_slideReady)
+            {
+                _slideX = target;
+                _slideReady = true;
+                return;
+            }
+            _slideFrom = _slideX;
+            _slideTo = target;
+            _slideProgress = 0f;
+            _slideTimer.Stop();
+            _slideTimer.Start();
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            _slideReady = false;
+            if (_options.Length > 0 && Width > 8)
+            {
+                int itemWidth = (Width - 8) / _options.Length;
+                _slideX = 4 + _selected * itemWidth;
+                _slideReady = true;
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && _slideTimer != null) _slideTimer.Dispose();
+            base.Dispose(disposing);
         }
 
         protected override void OnMouseDown(MouseEventArgs e)
@@ -593,11 +645,16 @@ namespace CubeLauncher.UI
             Ui.StrokeRound(g, rect, radius, Theme.OutlineVariant, 1f);
             if (_options.Length == 0) return;
             int itemWidth = (Width - 8) / _options.Length;
+            if (!_slideReady && Width > 8)
+            {
+                _slideX = 4 + _selected * itemWidth;
+                _slideReady = true;
+            }
+            Rectangle active = new Rectangle((int)Math.Round(_slideX), 4, itemWidth, Height - 8);
+            Ui.FillRound(g, active, Math.Max(8, active.Height / 2), Theme.SecondaryContainer);
             for (int i = 0; i < _options.Length; i++)
             {
                 Rectangle item = new Rectangle(4 + i * itemWidth, 4, itemWidth, Height - 8);
-                if (i == _selected)
-                    Ui.FillRound(g, item, Math.Max(8, item.Height / 2), Theme.SecondaryContainer);
                 Ui.Text(g, _options[i], Font, i == _selected ? Theme.OnSecondaryContainer : Theme.Muted, item, TextAlign.CenterMiddle);
             }
         }
