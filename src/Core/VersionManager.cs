@@ -269,7 +269,16 @@ namespace CubeLauncher.Core
             string cache = Path.Combine(_config.CacheDir, "versions", Util.SafeFileName(id) + ".json");
             if (File.Exists(cache))
             {
-                try { return JMap.Parse(File.ReadAllText(cache, Encoding.UTF8)); }
+                try
+                {
+                    string cachedText = File.ReadAllText(cache, Encoding.UTF8);
+                    if (saveInstalled)
+                    {
+                        Util.EnsureDirectory(Path.GetDirectoryName(installed));
+                        File.WriteAllText(installed, cachedText, new UTF8Encoding(false));
+                    }
+                    return JMap.Parse(cachedText);
+                }
                 catch { }
             }
 
