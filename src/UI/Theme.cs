@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using System.IO;
 using System.Windows.Forms;
 
 namespace CubeLauncher.UI
@@ -29,28 +30,72 @@ namespace CubeLauncher.UI
         public static readonly Color Red = Color.FromArgb(244, 112, 112);
         public static readonly Color Purple = Color.FromArgb(168, 139, 250);
 
-        public static readonly string UiFont = PickFont(new string[] { "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI" });
-        public static readonly string DisplayFont = PickFont(new string[] { "Bahnschrift SemiBold", "Segoe UI Semibold", "Microsoft YaHei UI" });
+        private static PrivateFontCollection _embeddedFonts;
+        private static readonly FontFamily EmbeddedUiFamily = LoadEmbeddedUiFamily();
+
+        public static readonly string UiFont = EmbeddedUiFamily != null ? EmbeddedUiFamily.Name : PickFont(new string[] { "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI" });
+        public static readonly string DisplayFont = EmbeddedUiFamily != null ? EmbeddedUiFamily.Name : PickFont(new string[] { "Bahnschrift SemiBold", "Segoe UI Semibold", "Microsoft YaHei UI" });
         public static readonly string MonoFont = PickFont(new string[] { "Cascadia Mono", "Consolas", "Courier New" });
 
         public static Font Font(float size)
         {
-            return new Font(UiFont, size, FontStyle.Regular, GraphicsUnit.Point);
+            return CreateFont(EmbeddedUiFamily, UiFont, size, FontStyle.Regular);
         }
 
         public static Font Font(float size, FontStyle style)
         {
-            return new Font(UiFont, size, style, GraphicsUnit.Point);
+            return CreateFont(EmbeddedUiFamily, UiFont, size, style);
         }
 
         public static Font Display(float size, FontStyle style)
         {
-            return new Font(DisplayFont, size, style, GraphicsUnit.Point);
+            return CreateFont(EmbeddedUiFamily, DisplayFont, size, style);
         }
 
         public static Font Mono(float size)
         {
-            return new Font(MonoFont, size, FontStyle.Regular, GraphicsUnit.Point);
+            return CreateFont(EmbeddedUiFamily, MonoFont, size, FontStyle.Regular);
+        }
+
+        private static Font CreateFont(FontFamily family, string fallbackName, float size, FontStyle style)
+        {
+            if (family != null)
+            {
+                try
+                {
+                    if (!family.IsStyleAvailable(style)) style = FontStyle.Regular;
+                    return new Font(family, size, style, GraphicsUnit.Point);
+                }
+                catch
+                {
+                }
+            }
+            return new Font(fallbackName, size, style, GraphicsUnit.Point);
+        }
+
+        private static FontFamily LoadEmbeddedUiFamily()
+        {
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string[] candidates = new string[]
+                {
+                    Path.Combine(baseDir, "assets", "fonts", "FangXiangXiangSi.ttf"),
+                    Path.Combine(baseDir, "assets", "fonts", "平方相思体.ttf"),
+                    Path.Combine(baseDir, "平方相思体.ttf")
+                };
+                for (int i = 0; i < candidates.Length; i++)
+                {
+                    if (!File.Exists(candidates[i])) continue;
+                    _embeddedFonts = new PrivateFontCollection();
+                    _embeddedFonts.AddFontFile(candidates[i]);
+                    if (_embeddedFonts.Families.Length > 0) return _embeddedFonts.Families[0];
+                }
+            }
+            catch
+            {
+            }
+            return null;
         }
 
         public static Color Alpha(Color color, int alpha)
