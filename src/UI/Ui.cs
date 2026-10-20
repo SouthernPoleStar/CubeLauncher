@@ -66,6 +66,69 @@ namespace CubeLauncher.UI
                 g.FillPath(brush, path);
         }
 
+        /// <summary>
+        /// A translucent, slowly moving glass surface. It fakes frosted glass with
+        /// layered alpha gradients, a soft top sheen and a travelling specular band.
+        /// </summary>
+        public static void FillLiquidGlass(Graphics g, Rectangle rect, int radius, float phase, Color tint)
+        {
+            if (rect.Width < 4 || rect.Height < 4) return;
+            float wave = (float)Math.Sin(phase);
+            Color top = Theme.Alpha(Theme.Mix(Theme.Card, tint, 0.20f), 232);
+            Color mid = Theme.Alpha(Theme.Mix(Theme.Card, tint, 0.08f), 196);
+            Color bottom = Theme.Alpha(Theme.Bg2, 222);
+            using (GraphicsPath path = RoundRect(rect, radius))
+            {
+                using (LinearGradientBrush brush = new LinearGradientBrush(rect, top, bottom, 90f + wave * 16f))
+                {
+                    ColorBlend blend = new ColorBlend();
+                    blend.Colors = new Color[] { top, mid, Theme.Alpha(Theme.Mix(Theme.Card, tint, 0.16f), 205), bottom };
+                    float p1 = 0.22f + wave * 0.04f;
+                    float p2 = 0.58f - wave * 0.03f;
+                    blend.Positions = new float[] { 0f, Math.Max(0.05f, p1), Math.Min(0.95f, p2), 1f };
+                    brush.InterpolationColors = blend;
+                    g.FillPath(brush, path);
+                }
+
+                GraphicsState state = g.Save();
+                g.SetClip(path, CombineMode.Intersect);
+                int sheenHeight = Math.Max(20, rect.Height / 3);
+                Rectangle sheen = new Rectangle(rect.X - 12, rect.Y - sheenHeight / 2, rect.Width + 24, sheenHeight);
+                using (LinearGradientBrush gloss = new LinearGradientBrush(sheen,
+                    Theme.Alpha(Theme.Mix(tint, Color.White, 0.45f), 34), Color.Transparent, 90f))
+                    g.FillRectangle(gloss, sheen);
+
+                int bandWidth = Math.Max(90, rect.Width / 3);
+                float travel = (float)((phase * 46.0) % (rect.Width + bandWidth * 2));
+                int bandX = rect.X - bandWidth + (int)travel;
+                Rectangle band = new Rectangle(bandX, rect.Y - 8, bandWidth, rect.Height + 16);
+                using (LinearGradientBrush specular = new LinearGradientBrush(band,
+                    Color.Transparent, Theme.Alpha(Color.White, 22), 24f))
+                {
+                    ColorBlend shine = new ColorBlend();
+                    shine.Colors = new Color[] { Color.Transparent, Theme.Alpha(Color.White, 26), Theme.Alpha(tint, 20), Color.Transparent };
+                    shine.Positions = new float[] { 0f, 0.36f, 0.62f, 1f };
+                    specular.InterpolationColors = shine;
+                    g.FillRectangle(specular, band);
+                }
+                g.Restore(state);
+
+                using (Pen border = new Pen(Theme.Alpha(Theme.Mix(Theme.Border, tint, 0.45f), 150), 1f))
+                    g.DrawPath(border, path);
+                using (Pen inner = new Pen(Theme.Alpha(Color.White, 22), 1f))
+                {
+                    Rectangle innerRect = new Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 2, rect.Height - 2);
+                    using (GraphicsPath innerPath = RoundRect(innerRect, Math.Max(1, radius - 1)))
+                        g.DrawPath(inner, innerPath);
+                }
+            }
+        }
+
+        public static void FillLiquidGlass(Graphics g, Rectangle rect, int radius, float phase)
+        {
+            FillLiquidGlass(g, rect, radius, phase, Theme.Accent);
+        }
+
         public static void StrokeRound(Graphics g, Rectangle rect, int radius, Color color, float width)
         {
             using (GraphicsPath path = RoundRect(rect, radius))

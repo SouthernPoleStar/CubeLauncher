@@ -30,6 +30,8 @@ namespace CubeLauncher.UI
         public JavaInfo Java;
         public bool Busy;
         public event Action DataChanged;
+        private PageTransition _transition;
+        private Timer _windowFade;
 
         public MainForm()
         {
@@ -65,6 +67,10 @@ namespace CubeLauncher.UI
 
             main.Controls.Add(_viewHost);
             main.Controls.Add(_topBar);
+            _transition = new PageTransition();
+            _transition.Dock = DockStyle.Fill;
+            main.Controls.Add(_transition);
+            _transition.BringToFront();
             Controls.Add(main);
             Controls.Add(_sidebar);
 
@@ -77,6 +83,28 @@ namespace CubeLauncher.UI
             Shown += delegate
             {
                 UpdateRegion();
+                try
+                {
+                    Opacity = 0;
+                    _windowFade = new Timer();
+                    _windowFade.Interval = 16;
+                    _windowFade.Tick += delegate
+                    {
+                        if (Opacity >= 1)
+                        {
+                            _windowFade.Stop();
+                            _windowFade.Dispose();
+                            _windowFade = null;
+                            return;
+                        }
+                        Opacity = Math.Min(1, Opacity + 0.09);
+                    };
+                    _windowFade.Start();
+                }
+                catch
+                {
+                    Opacity = 1;
+                }
                 LoadManifestAsync();
                 LoadJavaAsync();
             };
@@ -184,6 +212,7 @@ namespace CubeLauncher.UI
         public void ShowPage(Page page)
         {
             if ((int)page < 0 || (int)page >= _views.Length) return;
+            bool changed = _page != page;
             _page = page;
             Log.Info("切换到页面 " + page);
             for (int i = 0; i < _views.Length; i++) _views[i].Visible = i == (int)page;
@@ -191,6 +220,7 @@ namespace CubeLauncher.UI
             _topBar.SetPage((int)page);
             BaseView view = _views[(int)page];
             if (view != null) view.OnShown();
+            if (changed && _transition != null) _transition.Play();
         }
 
         public void NavigateHome() { ShowPage(Page.Home); }
@@ -482,6 +512,8 @@ namespace CubeLauncher.UI
             private readonly Label _version;
             private readonly string[] _labels = new string[] { "首页", "版本库", "模组中心", "账户中心", "设置" };
             private readonly IconKind[] _icons = new IconKind[] { IconKind.Home, IconKind.Layers, IconKind.Puzzle, IconKind.User, IconKind.Settings };
+            private readonly Timer _glassTimer;
+            private float _glassPhase;
 
             public Sidebar(MainForm main)
             {
@@ -525,8 +557,23 @@ namespace CubeLauncher.UI
                 _version.Bounds = new Rectangle(20, 0, 180, 18);
                 _version.Text = "CUBE LAUNCHER  v" + App.Version;
                 Controls.Add(_version);
+                _glassTimer = new Timer();
+                _glassTimer.Interval = 70;
+                _glassTimer.Tick += delegate
+                {
+                    _glassPhase += 0.045f;
+                    if (_glassPhase > 1000f) _glassPhase = 0f;
+                    Invalidate();
+                };
+                _glassTimer.Start();
                 Resize += delegate { LayoutBottom(); };
                 LayoutBottom();
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing && _glassTimer != null) _glassTimer.Dispose();
+                base.Dispose(disposing);
             }
 
             private void LayoutBottom()
@@ -555,8 +602,7 @@ namespace CubeLauncher.UI
             {
                 base.OnPaint(e);
                 Graphics g = e.Graphics;
-                using (LinearGradientBrush brush = new LinearGradientBrush(ClientRectangle, Theme.Sidebar, Color.FromArgb(10, 15, 20), 90f))
-                    g.FillRectangle(brush, ClientRectangle);
+                Ui.FillLiquidGlass(g, new Rectangle(0, 0, Width, Height), 0, _glassPhase, Theme.Cyan);
                 using (SolidBrush brush = new SolidBrush(Theme.Alpha(Theme.Accent, 9)))
                     g.FillEllipse(brush, -90, Height - 220, 300, 300);
                 using (Pen pen = new Pen(Theme.BorderSoft, 1f))
@@ -756,8 +802,7 @@ namespace CubeLauncher.UI
             {
                 base.OnPaint(e);
                 Graphics g = e.Graphics;
-                using (LinearGradientBrush brush = new LinearGradientBrush(ClientRectangle, Theme.Bg, Theme.Bg2, 0f))
-                    g.FillRectangle(brush, ClientRectangle);
+                Ui.FillLiquidGlass(g, new Rectangle(0, 0, Width, Height), 0, 0f, Theme.Accent);
                 using (Pen pen = new Pen(Theme.BorderSoft, 1f))
                     g.DrawLine(pen, 0, Height - 1, Width, Height - 1);
                 using (SolidBrush brush = new SolidBrush(Theme.Alpha(Theme.Accent, 18)))

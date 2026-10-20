@@ -185,15 +185,13 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            using (GraphicsPath path = Ui.RoundRect(rect, 18))
-            using (LinearGradientBrush brush = new LinearGradientBrush(rect, Color.FromArgb(22, 45, 41), Color.FromArgb(12, 20, 26), 25f))
-                g.FillPath(brush, path);
+            Ui.FillLiquidGlass(g, rect, 18, _phase, Theme.Accent);
 
             // Ambient light and pixel grid.
-            using (SolidBrush glow = new SolidBrush(Theme.Alpha(Theme.Accent, 12)))
-                g.FillEllipse(glow, Width - 440, -170, 560, 560);
-            using (SolidBrush glow2 = new SolidBrush(Color.FromArgb(14, Theme.Cyan)))
-                g.FillEllipse(glow2, Width - 240, 80, 360, 360);
+            using (SolidBrush glow = new SolidBrush(Theme.Alpha(Theme.Accent, 14)))
+                g.FillEllipse(glow, (int)(Width - 440 + Math.Sin(_phase * 0.7) * 24), -170, 560, 560);
+            using (SolidBrush glow2 = new SolidBrush(Color.FromArgb(18, Theme.Cyan)))
+                g.FillEllipse(glow2, (int)(Width - 240 + Math.Cos(_phase * 0.5) * 18), 80, 360, 360);
             DrawGrid(g, rect);
 
             Ui.Text(g, "MINECRAFT  //  READY TO PLAY", Theme.Mono(8f), Theme.Alpha(Theme.Accent, 230),
@@ -347,8 +345,7 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillRound(g, rect, 13, Theme.Card);
-            Ui.StrokeRound(g, rect, 13, Theme.BorderSoft, 1f);
+            Ui.FillLiquidGlass(g, rect, 13, 0f, _accent);
             using (SolidBrush glow = new SolidBrush(Theme.Alpha(_accent, 13)))
                 g.FillEllipse(glow, Width - 100, -46, 150, 150);
             Rectangle iconRect = new Rectangle(16, 16, 34, 34);
@@ -395,8 +392,7 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillRound(g, rect, 14, Theme.Card);
-            Ui.StrokeRound(g, rect, 14, Theme.BorderSoft, 1f);
+            Ui.FillLiquidGlass(g, rect, 14, 0f, Theme.Cyan);
             Ui.Text(g, "最近游玩", Theme.Font(10.5f, FontStyle.Bold), Theme.Text, new Rectangle(18, 12, 160, 26), TextAlign.LeftMiddle);
             Ui.Text(g, "点击快速启动", Theme.Font(7.8f), Theme.Muted, new Rectangle(Width - 130, 14, 112, 22), TextAlign.RightMiddle);
 
@@ -459,8 +455,7 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillRound(g, rect, 14, Theme.Card);
-            Ui.StrokeRound(g, rect, 14, Theme.BorderSoft, 1f);
+            Ui.FillLiquidGlass(g, rect, 14, 0f, Theme.Purple);
             Ui.Text(g, "启动器状态", Theme.Font(10.5f, FontStyle.Bold), Theme.Text, new Rectangle(18, 12, 180, 26), TextAlign.LeftMiddle);
             Ui.DrawIcon(g, IconKind.Settings, new Rectangle(Width - 34, 18, 15, 15), Theme.Faint, 1.5f);
 

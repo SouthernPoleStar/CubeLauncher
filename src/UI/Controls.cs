@@ -17,6 +17,8 @@ namespace CubeLauncher.UI
         private bool _pressed;
         private bool _loading;
         private ButtonStyle _style;
+        private float _hoverT;
+        private readonly Timer _hoverTimer;
 
         public IconKind? Icon;
         public int IconSize = 18;
@@ -31,6 +33,29 @@ namespace CubeLauncher.UI
             Cursor = Cursors.Hand;
             Height = 42;
             _style = ButtonStyle.Accent;
+            _hoverTimer = new Timer();
+            _hoverTimer.Interval = 16;
+            _hoverTimer.Tick += delegate
+            {
+                float target = _hover && Enabled ? 1f : 0f;
+                float distance = target - _hoverT;
+                if (Math.Abs(distance) < 0.015f)
+                {
+                    _hoverT = target;
+                    _hoverTimer.Stop();
+                }
+                else
+                {
+                    _hoverT += distance * 0.22f;
+                }
+                Invalidate();
+            };
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && _hoverTimer != null) _hoverTimer.Dispose();
+            base.Dispose(disposing);
         }
 
         public ButtonStyle Style
@@ -45,11 +70,11 @@ namespace CubeLauncher.UI
             set { _loading = value; Enabled = !value; Invalidate(); }
         }
 
-        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
-        protected override void OnMouseLeave(EventArgs e) { _hover = false; _pressed = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; _hoverTimer.Start(); Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; _pressed = false; _hoverTimer.Start(); Invalidate(); base.OnMouseLeave(e); }
         protected override void OnMouseDown(MouseEventArgs e) { _pressed = true; Invalidate(); base.OnMouseDown(e); }
         protected override void OnMouseUp(MouseEventArgs e) { _pressed = false; Invalidate(); base.OnMouseUp(e); }
-        protected override void OnEnabledChanged(EventArgs e) { Invalidate(); base.OnEnabledChanged(e); }
+        protected override void OnEnabledChanged(EventArgs e) { if (!Enabled) _hoverT = 0; Invalidate(); base.OnEnabledChanged(e); }
         protected override void OnTextChanged(EventArgs e) { Invalidate(); base.OnTextChanged(e); }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -57,36 +82,40 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            float h = _hoverT;
             Color from, to, textColor, border;
             switch (_style)
             {
                 case ButtonStyle.Ghost:
-                    from = _hover ? Theme.Alpha(Theme.Text, 18) : Color.Transparent;
+                    from = Theme.Alpha(Theme.Text, (int)(18 * h));
                     to = from;
                     textColor = Theme.Text;
-                    border = _hover ? Theme.Alpha(Theme.Accent, 100) : Theme.Border;
+                    border = Color.FromArgb((int)(Theme.Border.A * (1 - h) + 100 * h),
+                        (int)(Theme.Border.R * (1 - h) + Theme.Accent.R * h),
+                        (int)(Theme.Border.G * (1 - h) + Theme.Accent.G * h),
+                        (int)(Theme.Border.B * (1 - h) + Theme.Accent.B * h));
                     break;
                 case ButtonStyle.Dark:
-                    from = _hover ? Theme.CardHover : Theme.Card;
+                    from = Theme.Mix(Theme.Card, Theme.CardHover, h);
                     to = from;
                     textColor = Theme.Text;
                     border = Theme.Border;
                     break;
                 case ButtonStyle.Danger:
-                    from = _hover ? Theme.Mix(Theme.Red, Color.White, 0.10) : Theme.Red;
-                    to = Theme.Mix(from, Color.Black, 0.18);
+                    from = Theme.Mix(Theme.Red, Theme.Mix(Theme.Red, Color.White, 0.12f), h);
+                    to = Theme.Mix(from, Color.Black, 0.18f);
                     textColor = Color.White;
                     border = Color.Transparent;
                     break;
                 case ButtonStyle.Subtle:
-                    from = _hover ? Theme.Alpha(Theme.Accent, 22) : Theme.Alpha(Theme.Accent, 10);
+                    from = Theme.Alpha(Theme.Accent, (int)(10 + 13 * h));
                     to = from;
                     textColor = Theme.Accent;
                     border = Theme.Alpha(Theme.Accent, 55);
                     break;
                 default:
-                    from = _hover ? Theme.Mix(Theme.Accent, Color.White, 0.12) : Theme.Accent;
-                    to = _hover ? Theme.Mix(Theme.Accent, Color.White, 0.02) : Theme.Mix(Theme.Accent, Color.Black, 0.16);
+                    from = Theme.Mix(Theme.Accent, Theme.Mix(Theme.Accent, Color.White, 0.12f), h);
+                    to = Theme.Mix(Theme.Mix(Theme.Accent, Color.Black, 0.16f), Theme.Mix(Theme.Accent, Color.White, 0.02f), h);
                     textColor = Color.FromArgb(7, 25, 19);
                     border = Color.Transparent;
                     break;
@@ -98,6 +127,8 @@ namespace CubeLauncher.UI
                 textColor = Theme.Faint;
                 border = Theme.BorderSoft;
             }
+            if (_style == ButtonStyle.Accent && Enabled && h > 0.01f)
+                Ui.Glow(g, rect, Theme.Alpha(Theme.Accent, (int)(38 * h)), 5);
             if (_pressed) rect = new Rectangle(1, 2, Width - 3, Height - 4);
             if (from.A > 0 || _style == ButtonStyle.Ghost || _style == ButtonStyle.Subtle)
             {
@@ -903,6 +934,7 @@ namespace CubeLauncher.UI
         private readonly string _message;
         private readonly Color _accent;
         private int _life;
+        private float _alpha;
 
         public ToastPanel(string message, Color accent)
         {
@@ -917,11 +949,15 @@ namespace CubeLauncher.UI
             _timer.Tick += delegate
             {
                 _life += 30;
-                if (_life > 3200)
+                float fadeIn = Math.Min(1f, _life / 180f);
+                float fadeOut = _life > 3000 ? Math.Max(0f, (3600 - _life) / 600f) : 1f;
+                _alpha = Math.Min(fadeIn, fadeOut);
+                if (_life > 3600)
                 {
                     _timer.Stop();
                     if (Parent != null) Parent.Controls.Remove(this);
                     Dispose();
+                    return;
                 }
                 Invalidate();
             };
@@ -933,12 +969,15 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillRound(g, rect, 11, Theme.Alpha(Theme.Card, 248));
-            Ui.StrokeRound(g, rect, 11, Theme.Alpha(_accent, 120), 1f);
-            using (SolidBrush brush = new SolidBrush(_accent))
+            float a = _alpha;
+            if (a <= 0f) a = 0.01f;
+            Ui.FillRound(g, rect, 11, Theme.Alpha(Theme.Card, (int)(248 * a)));
+            Ui.StrokeRound(g, rect, 11, Theme.Alpha(_accent, (int)(120 * a)), 1f);
+            using (SolidBrush brush = new SolidBrush(Theme.Alpha(_accent, (int)(255 * a))))
                 g.FillRectangle(brush, 0, 12, 3, Height - 24);
-            Ui.DrawIcon(g, IconKind.Check, new Rectangle(16, (Height - 19) / 2, 19, 19), _accent, 1.8f);
-            Ui.Text(g, _message, Theme.Font(9.2f), Theme.Text, new Rectangle(46, 0, Width - 60, Height), TextAlign.LeftMiddle, true);
+            Ui.DrawIcon(g, IconKind.Check, new Rectangle(16, (Height - 19) / 2, 19, 19), Theme.Alpha(_accent, (int)(255 * a)), 1.8f);
+            Ui.Text(g, _message, Theme.Font(9.2f), Theme.Alpha(Theme.Text, (int)(255 * a)),
+                new Rectangle(46, 0, Width - 60, Height), TextAlign.LeftMiddle, true);
         }
     }
 }
