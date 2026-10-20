@@ -45,7 +45,7 @@ Copy-Item (Join-Path $root 'assets\screenshot-home.png') (Join-Path $dist 'asset
 Copy-Item (Join-Path $root 'assets\screenshot-mods.png') (Join-Path $dist 'assets') -Force
 Copy-Item (Join-Path $root 'assets\screenshot-settings.png') (Join-Path $dist 'assets') -Force
 New-Item -ItemType Directory -Force (Join-Path $dist 'assets\fonts') | Out-Null
-Copy-Item (Join-Path $root 'assets\fonts\FangXiangXiangSi.ttf') (Join-Path $dist 'assets\fonts') -Force
+Copy-Item (Join-Path $root 'assets\fonts\ShangShouBiaoTiSong.ttf') (Join-Path $dist 'assets\fonts') -Force
 
 $zip = Join-Path $release 'CubeLauncher-1.0.0-win64.zip'
 if (Test-Path $zip) { Remove-Item $zip -Force }

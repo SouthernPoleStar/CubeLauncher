@@ -80,9 +80,9 @@ namespace CubeLauncher.UI
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string[] candidates = new string[]
                 {
-                    Path.Combine(baseDir, "assets", "fonts", "FangXiangXiangSi.ttf"),
-                    Path.Combine(baseDir, "assets", "fonts", "平方相思体.ttf"),
-                    Path.Combine(baseDir, "平方相思体.ttf")
+                    Path.Combine(baseDir, "assets", "fonts", "ShangShouBiaoTiSong.ttf"),
+                    Path.Combine(baseDir, "assets", "fonts", "上首标题宋体.ttf"),
+                    Path.Combine(baseDir, "上首标题宋体.ttf")
                 };
                 for (int i = 0; i < candidates.Length; i++)
                 {
