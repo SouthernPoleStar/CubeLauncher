@@ -32,7 +32,13 @@ namespace CubeLauncher.UI
             _source = new SegmentedControl();
             _source.Options = new string[] { "Modrinth", "CurseForge" };
             _source.SelectedIndex = 0;
-            _source.SelectedIndexChanged += delegate { StartSearch(); };
+            _source.SelectedIndexChanged += delegate
+            {
+                _search.Placeholder = _source.SelectedIndex == 1
+                    ? "CurseForge 无 API Key：输入项目 slug 精确查询，如 jei"
+                    : "搜索模组、光影、优化模组...";
+                StartSearch();
+            };
             Controls.Add(_source);
 
             _refresh = new AccentButton();
@@ -111,6 +117,17 @@ namespace CubeLauncher.UI
             string query = _search.Value.Trim();
             string mc = version == null ? "" : version.Minecraft;
             string loader = version == null ? "" : version.Loader;
+            if (source == "curseforge" && string.IsNullOrEmpty(query))
+            {
+                _loading = false;
+                _list.Clear();
+                EmptyState notice = new EmptyState(IconKind.Warning, "CurseForge 需要精确项目名",
+                    "无 API Key 时 CurseForge 没有关键词搜索接口，只能输入已知项目 slug，例如 jei、sodium、create。\n" +
+                    "这不是启动器能力上限；填写 API Key 后可恢复完整搜索。");
+                notice.Width = _list.Width - 4;
+                _list.AddControl(notice);
+                return;
+            }
             Ui.Run(this, delegate
             {
                 ModSearchResult result = ModService.Search(Main.Config, source, query, mc, loader, 0, 20);

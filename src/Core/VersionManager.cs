@@ -218,6 +218,8 @@ namespace CubeLauncher.Core
         {
             string lower = (id ?? "").ToLowerInvariant();
             if (lower.Contains("neoforge")) return "neoforge";
+            // Legacy NeoForge 1.20.1 was installed as 1.20.1-forge-47.1.x.
+            if (lower.Contains("1.20.1-forge-47.1.")) return "neoforge";
             if (lower.Contains("forge")) return "forge";
             if (lower.Contains("fabric")) return "fabric";
             if (lower.Contains("quilt")) return "quilt";
@@ -240,8 +242,10 @@ namespace CubeLauncher.Core
             if (string.Equals(loader, "neoforge", StringComparison.OrdinalIgnoreCase))
             {
                 if (id.StartsWith("neoforge-", StringComparison.OrdinalIgnoreCase)) return id.Substring("neoforge-".Length);
-                int index = id.IndexOf("-neoforge-", StringComparison.OrdinalIgnoreCase);
-                if (index >= 0) return id.Substring(index + 10);
+                int neoForge = id.IndexOf("-neoforge-", StringComparison.OrdinalIgnoreCase);
+                if (neoForge >= 0) return id.Substring(neoForge + 10);
+                int legacy = id.IndexOf("-forge-", StringComparison.OrdinalIgnoreCase);
+                if (legacy >= 0) return id.Substring(legacy + 7);
             }
             if (string.Equals(loader, "fabric", StringComparison.OrdinalIgnoreCase) && id.StartsWith("fabric-loader-", StringComparison.OrdinalIgnoreCase))
             {

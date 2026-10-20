@@ -11,6 +11,7 @@ namespace CubeLauncher.Core
     {
         public string Minecraft = "";
         public string Version = "";
+        public string InstallerVersion = "";
         public string Artifact = "neoforge";
         public bool Stable;
         public string Label = "";
@@ -29,10 +30,17 @@ namespace CubeLauncher.Core
             string prefix = VersionPrefix(mc);
             if (string.IsNullOrEmpty(prefix)) return result;
 
-            ParseMetadata(config, mc, prefix, "neoforge", result);
-            // NeoForge for 1.20.1 was published under the legacy "forge" artifact.
-            if (result.Count == 0 && string.Equals(mc, "1.20.1", StringComparison.OrdinalIgnoreCase))
-                ParseMetadata(config, mc, "47.1.", "forge", result);
+            if (string.Equals(mc, "1.20.1", StringComparison.OrdinalIgnoreCase))
+            {
+                // 1.20.1 is the legacy net.neoforged:forge artifact; do not probe
+                // the modern neoforge metadata first (it has no 47.1 builds and
+                // would waste two official-source timeouts).
+                ParseMetadata(config, mc, mc + "-", "forge", result);
+            }
+            else
+            {
+                ParseMetadata(config, mc, prefix, "neoforge", result);
+            }
 
             result.Sort(delegate(NeoForgeBuild a, NeoForgeBuild b)
             {
@@ -69,10 +77,20 @@ namespace CubeLauncher.Core
                         if (!version.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
                         NeoForgeBuild build = new NeoForgeBuild();
                         build.Minecraft = mc;
-                        build.Version = version;
                         build.Artifact = artifact;
+                        if (string.Equals(artifact, "forge", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!version.StartsWith(mc + "-", StringComparison.OrdinalIgnoreCase)) continue;
+                            build.InstallerVersion = version;
+                            build.Version = version.Substring(mc.Length + 1);
+                        }
+                        else
+                        {
+                            build.InstallerVersion = version;
+                            build.Version = version;
+                        }
                         build.Stable = version.IndexOf("beta", StringComparison.OrdinalIgnoreCase) < 0;
-                        build.Label = version + (build.Stable ? "  稳定" : "  测试");
+                        build.Label = build.Version + (build.Stable ? "  稳定" : "  测试");
                         result.Add(build);
                     }
                     if (result.Count == 0)
@@ -97,21 +115,25 @@ namespace CubeLauncher.Core
 
             string cache = Path.Combine(config.CacheDir, "neoforge");
             Util.EnsureDirectory(cache);
-            string installer = Path.Combine(cache, "neoforge-" + build.Version + "-installer.jar");
+            string installerVersion = string.IsNullOrEmpty(build.InstallerVersion) ? build.Version : build.InstallerVersion;
+            if (string.Equals(build.Artifact, "forge", StringComparison.OrdinalIgnoreCase) &&
+                !installerVersion.StartsWith(mc + "-", StringComparison.OrdinalIgnoreCase))
+                installerVersion = mc + "-" + installerVersion;
+            string installer = Path.Combine(cache, "neoforge-" + installerVersion + "-installer.jar");
             if (!File.Exists(installer) || new FileInfo(installer).Length < 100000)
             {
                 DownloadItem item = new DownloadItem();
-                item.Name = "NeoForge " + build.Version + " 安装器";
+                item.Name = "NeoForge " + installerVersion + " 安装器";
                 item.Destination = installer;
-                item.Urls = Mirror.NeoForgeInstaller(build.Version, build.Artifact, config.MirrorFirst);
-                progress.SetStage("下载 NeoForge 安装器 (BMCLAPI 国内镜像)");
+                item.Urls = Mirror.NeoForgeInstaller(installerVersion, build.Artifact, config.MirrorFirst);
+                progress.SetStage("下载 NeoForge 安装器 (NeoForged CDN 国内镜像)");
                 Http.DownloadOne(item, progress.Token, null);
             }
 
             progress.SetStage("运行 NeoForge 安装器，正在应用补丁");
             Log.Info("NeoForge 安装器: " + installer);
+            PreDownloadLibraries(config, installer, progress);
             installer = PrepareInstaller(config, installer, progress);
-            if (config.MirrorFirst) PreDownloadLibraries(config, installer, progress);
             string args = "-jar " + Util.Quote(installer) + " --installClient " + Util.Quote(config.GameDir) +
                           " --mirror " + Util.Quote(Mirror.BmclApi + "/maven/");
             ProcessResult first;
@@ -153,10 +175,9 @@ namespace CubeLauncher.Core
                     throw new Exception("NeoForge 安装器失败 (退出码 " + second.ExitCode + ")，请查看日志");
             }
 
-            string id = FindInstalled(config, mc, build.Version);
+            string id = FindInstalled(config, mc, build.Version, build.Artifact);
             if (string.IsNullOrEmpty(id))
                 throw new Exception("NeoForge 安装器结束，但没有找到对应版本 JSON，请查看 " + Path.Combine(config.GameDir, "installer.log"));
-
             Util.EnsureDirectory(config.InstanceDir(id));
             Util.EnsureDirectory(config.ModsDir(id));
             progress.SetStage("检查 NeoForge 运行库");
@@ -279,8 +300,9 @@ namespace CubeLauncher.Core
                 if (string.IsNullOrEmpty(path)) continue;
                 string destination = Path.Combine(config.LibrariesDir, path.Replace('/', Path.DirectorySeparatorChar));
                 if (!seen.Add(destination)) continue;
-                // BMCLAPI currently misses JarJarFileSystems 0.4.0; it is repaired after installation.
-                if (path.IndexOf("JarJarFileSystems/0.4.0", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                // The legacy NeoForge installer may not be present on BMCLAPI;
+                // NeoForged's own CDN is reachable from mainland China.
+                // Do not skip JarJarFileSystems here: the CDN has 0.4.0.
 
                 DownloadItem item = new DownloadItem();
                 item.Name = "NeoForge 依赖 " + maven.Artifact;
@@ -288,6 +310,7 @@ namespace CubeLauncher.Core
                 item.Sha1 = artifact.Str("sha1", "");
                 item.Size = artifact.Long("size", 0);
                 item.Urls = new List<string>();
+                item.Urls.Add("https://neoforged.forgecdn.net/releases/" + path);
                 item.Urls.Add(Mirror.BmclApi + "/maven/" + path);
                 string official = artifact.Str("url", "");
                 if (!string.IsNullOrEmpty(official) && !item.Urls.Contains(official)) item.Urls.Add(official);
@@ -330,12 +353,15 @@ namespace CubeLauncher.Core
             return changed;
         }
 
-        private static string FindInstalled(AppConfig config, string mc, string version)
-        {            string[] candidates = new string[]
+        private static string FindInstalled(AppConfig config, string mc, string version, string artifact)
+        {
+            bool legacy = string.Equals(artifact, "forge", StringComparison.OrdinalIgnoreCase);
+            string[] candidates = new string[]
             {
+                legacy ? mc + "-forge-" + version : "neoforge-" + version,
                 "neoforge-" + version,
                 mc + "-neoforge-" + version,
-                "1.20.1-neoforge-" + version
+                mc + "-forge-" + version
             };
             for (int i = 0; i < candidates.Length; i++)
             {
@@ -344,7 +370,8 @@ namespace CubeLauncher.Core
             }
             if (Directory.Exists(config.VersionsDir))
             {
-                string[] dirs = Directory.GetDirectories(config.VersionsDir, "*neoforge*");
+                string pattern = legacy ? "*forge*" : "*neoforge*";
+                string[] dirs = Directory.GetDirectories(config.VersionsDir, pattern);
                 for (int i = 0; i < dirs.Length; i++)
                 {
                     string id = Path.GetFileName(dirs[i]);

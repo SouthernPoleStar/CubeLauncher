@@ -116,6 +116,7 @@ namespace CubeLauncher.Core
         {
             string official = "https://maven.neoforged.net/releases/net/neoforged/" + artifact + "/maven-metadata.xml";
             List<string> urls = new List<string>();
+            urls.Add("https://neoforged.forgecdn.net/releases/net/neoforged/" + artifact + "/maven-metadata.xml");
             if (mirrorFirst) urls.Add(BmclApi + "/maven/net/neoforged/" + artifact + "/maven-metadata.xml");
             urls.Add(official);
             return urls;
@@ -123,9 +124,11 @@ namespace CubeLauncher.Core
 
         public static List<string> NeoForgeInstaller(string version, string artifact, bool mirrorFirst)
         {
-            string official = "https://maven.neoforged.net/releases/net/neoforged/" + artifact + "/" + version + "/" + artifact + "-" + version + "-installer.jar";
+            string path = artifact + "/" + version + "/" + artifact + "-" + version + "-installer.jar";
+            string official = "https://maven.neoforged.net/releases/net/neoforged/" + path;
             List<string> urls = new List<string>();
-            if (mirrorFirst) urls.Add(BmclApi + "/maven/net/neoforged/" + artifact + "/" + version + "/" + artifact + "-" + version + "-installer.jar");
+            urls.Add("https://neoforged.forgecdn.net/releases/net/neoforged/" + path);
+            if (mirrorFirst) urls.Add(BmclApi + "/maven/net/neoforged/" + path);
             urls.Add(official);
             return urls;
         }
@@ -214,6 +217,17 @@ namespace CubeLauncher.Core
 
         public static List<string> ModFileUrls(string officialDownload, bool mirrorFirst)
         {
+            List<string> urls = new List<string>();
+            Uri uri;
+            if (!string.IsNullOrEmpty(officialDownload) && Uri.TryCreate(officialDownload, UriKind.Absolute, out uri) &&
+                (uri.Host.EndsWith("forgecdn.net", StringComparison.OrdinalIgnoreCase)))
+            {
+                string path = uri.AbsolutePath;
+                urls.Add("https://mediafilez.forgecdn.net" + path);
+                urls.Add("https://edge.forgecdn.net" + path);
+                urls.Add(Mcim + path);
+                return urls;
+            }
             return Urls(officialDownload, mirrorFirst);
         }
 

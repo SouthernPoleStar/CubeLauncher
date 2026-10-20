@@ -5,8 +5,8 @@
 ![方块启动器图标](assets/icon-preview.png)
 
 > [!WARNING]
-> **CurseForge 下载目前不可用。**  
-> MCIM 国内镜像当前故障，且未配置 CurseForge 官方 API Key，因此 CurseForge 的完整搜索、文件列表与依赖安装暂不可用。启动器会尝试通过 CFWidget 按项目 slug 回退，但只支持部分项目，且不会返回前置依赖。Modrinth 下载正常。  
+> **CurseForge 无 API Key 时只支持“已知项目 slug 精确查询”，不支持关键词模糊搜索。**  
+> 这是 CurseForge/CFWidget 的平台限制，不是启动器能力上限。输入 `jei`、`sodium`、`create` 等项目 slug 可以搜索、选择文件并下载；完整关键词搜索与前置依赖解析需要 API Key。  
 > 详情见 [STATUS.md](STATUS.md)。
 
 ## 界面预览
@@ -22,11 +22,12 @@
 - **模组加载器**
   - Fabric：从 Fabric Meta 获取 Loader 列表，自动安装 Loader、Intermediary 与依赖。
   - Forge：从 Forge Maven 获取全部构建，下载官方安装器并通过 `--mirror` 让安装器优先使用 BMCLAPI。
-  - NeoForge：从 NeoForge Maven 获取版本，优先使用 BMCLAPI，自动运行安装器并处理 20.4 的 JarJarFileSystems 镜像缺失。
+  - NeoForge：从 NeoForged CDN 获取版本与安装器，20.4/1.21.1 及 1.20.1 旧版 47.1 均可安装，自动预下载依赖。
   - Quilt：从 Quilt Meta 安装，兼容 Fabric 模组生态。
 - **两大模组站**
-  - Modrinth / CurseForge 搜索、项目详情、版本文件选择、一键安装；CurseForge 镜像不可用时自动使用 CFWidget 按 slug 回退。
-  - 通过 MCIM 国内镜像读取元数据并下载文件；必需前置模组自动安装。
+  - Modrinth / CurseForge 搜索、项目详情、版本文件选择、一键安装。
+  - CurseForge 无 API Key 时走 CFWidget 精确 slug 查询；文件列表按 MC 版本与加载器过滤、按上传时间倒序；ForgeCDN 使用 `mediafilez` / `edge` 双域名回退。
+  - 通过 MCIM 国内镜像读取元数据并下载文件；Modrinth 必需前置模组自动安装。
 - **账户系统**
   - 微软正版：微软官方设备代码登录，Xbox Live / XSTS / Minecraft Services，支持正版皮肤与披风。
   - 第三方皮肤站：兼容 authlib-injector / Yggdrasil，内置 LittleSkin 预设，启动时自动注入皮肤。
@@ -47,7 +48,7 @@
 | 客户端、依赖库 | BMCLAPI | Mojang / Maven |
 | 资源对象 | BMCLAPI `/assets` | Mojang `resources.download.minecraft.net` |
 | Forge 安装器 / 库 | BMCLAPI Forge / Maven | Forge 官方 Maven |
-| NeoForge 安装器 / 库 | BMCLAPI Maven | NeoForge 官方 Maven |
+| NeoForge 安装器 / 库 | NeoForged CDN / BMCLAPI Maven | NeoForge 官方 Maven |
 | Fabric Meta / 库 | BMCLAPI `/fabric-meta`、`/maven` | Fabric 官方 |
 | CurseForge / Modrinth | MCIM (`mod.mcimirror.top`) | Modrinth 官方；CurseForge 使用 CFWidget 或自定义 API Key |
 | Java | 清华 TUNA Adoptium | Adoptium API |
@@ -128,12 +129,14 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
 ## 已知限制
 
 - 微软登录使用设备代码流程和 Prism Launcher 的公共客户端 ID；如果微软调整权限策略，可在 `config.json` 中替换为自己的 Azure 公共客户端 ID。
-- CurseForge 优先走 MCIM 镜像；MCIM 暂不可用时自动回退到 CFWidget（按项目 slug 查询，适合 `jei`、`sodium`、`create` 等），也可在设置中填写 CurseForge API Key 使用官方 API。
+- CurseForge 优先走 MCIM 镜像；MCIM 暂不可用时自动回退到 CFWidget 精确 slug 查询（适合 `jei`、`sodium`、`create` 等），也可在设置中填写 CurseForge API Key 使用官方 API。
+- **CurseForge 无 Key 时没有关键词搜索接口**；CFWidget 的 `/search`、`/v2/search` 均为 404，只能按 slug 精确查询。UI 已明确提示这一点，不是项目范围限制。
+- ForgeCDN 同时尝试 `mediafilez.forgecdn.net`（优先）和 `edge.forgecdn.net`；两者内容可能不一致，不能只依赖 edge，也不能给文件路径加随机前缀目录。
 - CurseForge 的 CFWidget 回退不返回前置依赖信息；启动器会自动补装 Fabric API，但 Architectury、Cloth Config 等其他前置仍需手动安装。
 - Fabric 启动前自动补装 Fabric API 仅针对检测到“非 Sodium”模组且没有 API 的情况；如果手动安装了错误版本，请删除旧 API 后重试。
 - Forge 安装依赖官方安装器执行映射合并与二进制补丁；安装器本身从 BMCLAPI 下载，库优先走 BMCLAPI，失败时回退官方。
-- NeoForge 20.4.x 的 JarJarFileSystems 0.4.0 在 BMCLAPI 缺失，启动器会自动把安装器内的依赖替换为兼容的 0.4.1；其他版本直接使用镜像。已实测 1.20.4 + NeoForge 20.4.237 启动成功。
-- NeoForge 1.20.1 属于旧的 `net.neoforged:forge` 47.1 构建；BMCLAPI 可能没有该安装器，此时需要能访问 NeoForge 官方 Maven。1.20.2+ 走 `net.neoforged:neoforge`，推荐 1.20.4 / 1.21.1。
+- NeoForge 安装器、Maven 元数据与依赖优先走 `neoforged.forgecdn.net`，再回退 BMCLAPI / 官方 Maven。20.4 的 JarJarFileSystems 0.4.0 可直接从该 CDN 获取，不再需要修补安装器。
+- NeoForge 1.20.1 属于旧的 `net.neoforged:forge 1.20.1-47.1.x` 构建，启动器已适配该版本命名；1.20.2+ 走 `net.neoforged:neoforge`。
 - 资源文件数量约 3000+，首次安装需要几分钟；之后会按 SHA1 校验并跳过。
 - 仅支持 Windows。Java 版本按版本 JSON 的 `javaVersion.majorVersion` 选择（通常 8 / 17 / 21）。
 

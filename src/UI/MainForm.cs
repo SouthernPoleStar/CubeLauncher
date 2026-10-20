@@ -291,6 +291,7 @@ namespace CubeLauncher.UI
                         build.Minecraft = choice.Minecraft;
                         build.Version = choice.LoaderVersion;
                         build.Artifact = choice.Minecraft == "1.20.1" ? "forge" : "neoforge";
+                        build.InstallerVersion = choice.Minecraft == "1.20.1" ? "1.20.1-" + choice.LoaderVersion : choice.LoaderVersion;
                         resultId = NeoForgeService.Install(Config, Versions, choice.Minecraft, build, progress);
                     }
                     else

@@ -4,20 +4,29 @@
 
 ## CurseForge 下载
 
-**状态：不可用**
+**状态：部分可用（无 API Key 仅支持精确 slug 查询）**
 
-原因：
+已确认：
 
-- MCIM 国内镜像当前返回 `503 Service Unavailable`；
-- 启动器未内置 CurseForge 官方 API Key（官方条款禁止共享/内置 Key）；
-- 无 API Key 时，CurseForge 官方 API 返回 `403 Forbidden`。
+- ForgeCDN 的 `mediafilez.forgecdn.net` 可用（实测 `206`），`edge.forgecdn.net` 对同一文件可能是 `404`；启动器已改为 mediafilez 优先、edge 回退；
+- 文件路径不能带随机目录（例如 `AU9c1WP`），否则返回 `403 AccessDenied`；
+- CFWidget 项目接口可用，但单次响应约 2.7 MB、耗时可达 15 秒，启动器已做 10 分钟内存缓存；
+- CFWidget 不带 `version` 参数会返回最老的文件（JEI 会返回 1.12.2），启动器现在始终带 `version` + `loader`，并按 `versions[]` 同时校验 MC 版本与加载器，按上传时间倒序。
 
-当前回退方案：
+平台限制：
 
-- 启动器会尝试通过 CFWidget 按项目 slug 获取信息与 ForgeCDN 下载地址；
-- 只支持部分项目（例如 `jei`、`sodium`、`create`、`fabric-api`）；
-- CFWidget 不返回前置依赖，可能需要手动安装；
-- 完整搜索、分页和依赖解析不可用。
+- `api.cfwidget.com` **没有搜索接口**，`/search`、`/v2/search` 均为 404；
+- `api.curse.tools` 已关闭（403）；
+- `api.curseforge.com` 无 Key 返回 403。
+
+因此：
+
+- 输入已知项目 slug（如 `jei`、`sodium`、`create`）可以搜索、选择文件并下载；
+- **不能**像 Modrinth 一样做关键词模糊搜索、分页和依赖解析；
+- CFWidget 不返回前置依赖，需要手动安装；
+- 填写 CurseForge API Key 后可恢复完整官方 API。
+
+Modrinth 仍完整可用。
 
 ## Modrinth
 
@@ -34,7 +43,7 @@
 | Mojang 版本清单 / 客户端 | 可用（BMCLAPI 优先） |
 | 依赖库 / 资源文件 | 可用（BMCLAPI 优先） |
 | Forge 安装器 / Maven | 可用（BMCLAPI 优先） |
-| NeoForge 安装器 / 库 | 可用（1.20.4 / 1.21.1；20.4 自动修补 JarJar 镜像） |
+| NeoForge 安装器 / 库 | 可用（NeoForged CDN；1.20.1 / 1.20.4 / 1.21.1） |
 | Fabric Meta / Loader | 可用（BMCLAPI 优先） |
 | Java（Temurin） | 可用（清华 TUNA 优先） |
 | 微软登录 | 可用（设备代码流程） |

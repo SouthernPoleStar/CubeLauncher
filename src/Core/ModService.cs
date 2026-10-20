@@ -86,6 +86,15 @@ namespace CubeLauncher.Core
 
     public static class ModService
     {
+        private sealed class CfWidgetCacheEntry
+        {
+            public string Json;
+            public DateTime At;
+        }
+
+        private static readonly Dictionary<string, CfWidgetCacheEntry> CfWidgetCache = new Dictionary<string, CfWidgetCacheEntry>();
+        private static readonly object CfWidgetLock = new object();
+
         public static int CurseLoaderType(string loader)
         {
             if (string.Equals(loader, "forge", StringComparison.OrdinalIgnoreCase)) return 1;
@@ -255,6 +264,18 @@ namespace CubeLauncher.Core
 
         private static JMap FetchCfWidget(AppConfig config, string slug, string mc, string loader)
         {
+            string key = slug + "|" + (mc ?? "") + "|" + (loader ?? "");
+            lock (CfWidgetLock)
+            {
+                CfWidgetCacheEntry cached;
+                if (CfWidgetCache.TryGetValue(key, out cached) &&
+                    (DateTime.UtcNow - cached.At).TotalMinutes < 10)
+                {
+                    try { return JMap.Parse(cached.Json); }
+                    catch { CfWidgetCache.Remove(key); }
+                }
+            }
+
             string url = "https://api.cfwidget.com/minecraft/mc-mods/" + Uri.EscapeDataString(slug);
             if (!string.IsNullOrEmpty(mc) || !string.IsNullOrEmpty(loader))
             {
@@ -262,7 +283,14 @@ namespace CubeLauncher.Core
                 if (!string.IsNullOrEmpty(mc)) url += "version=" + Uri.EscapeDataString(mc);
                 if (!string.IsNullOrEmpty(loader)) url += (url.EndsWith("?") ? "" : "&") + "loader=" + Uri.EscapeDataString(loader);
             }
-            string json = Http.GetText(new List<string>() { url }, 30000);
+            string json = Http.GetText(new List<string>() { url }, 45000);
+            lock (CfWidgetLock)
+            {
+                CfWidgetCacheEntry entry = new CfWidgetCacheEntry();
+                entry.Json = json;
+                entry.At = DateTime.UtcNow;
+                CfWidgetCache[key] = entry;
+            }
             return JMap.Parse(json);
         }
 
@@ -301,22 +329,85 @@ namespace CubeLauncher.Core
             List<ModFile> result = new List<ModFile>();
             if (project == null || string.IsNullOrEmpty(project.Slug)) return result;
             JMap json = FetchCfWidget(config, project.Slug, mc, loader);
+
+            List<JMap> candidates = new List<JMap>();
             JMap download = json.Map("download");
-            string id = download.Str("id", "");
-            string fileName = download.Str("name", "");
-            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(fileName)) return result;
+            if (IsCfWidgetCompatible(download, mc, loader)) candidates.Add(download);
+            List<JMap> files = json.Maps("files");
+            for (int i = 0; i < files.Count; i++)
+            {
+                if (IsCfWidgetCompatible(files[i], mc, loader)) candidates.Add(files[i]);
+            }
+
+            if (candidates.Count == 0)
+                throw new Exception("CFWidget 未找到适配 " + mc + " / " + loader + " 的文件");
+
+            candidates.Sort(delegate(JMap a, JMap b)
+            {
+                int byDate = string.CompareOrdinal(b.Str("uploaded_at", ""), a.Str("uploaded_at", ""));
+                if (byDate != 0) return byDate;
+                return b.Long("id", 0).CompareTo(a.Long("id", 0));
+            });
+
+            HashSet<string> seen = new HashSet<string>();
+            for (int i = 0; i < candidates.Count && result.Count < 50; i++)
+            {
+                ModFile file = CfWidgetFile(candidates[i], project.Id);
+                if (file == null || string.IsNullOrEmpty(file.DownloadUrl)) continue;
+                if (!seen.Add(file.Id)) continue;
+                result.Add(file);
+            }
+            return result;
+        }
+
+        private static bool IsCfWidgetCompatible(JMap file, string mc, string loader)
+        {
+            if (file == null || file.Count == 0) return false;
+            string id = file.Str("id", "");
+            string name = file.Str("name", "");
+            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(name)) return false;
+            List<object> versions = new List<object>();
+            IList<object> raw = file.List("versions");
+            if (raw != null) for (int i = 0; i < raw.Count; i++) versions.Add(raw[i]);
+
+            bool hasMc = string.IsNullOrEmpty(mc);
+            bool hasLoader = string.IsNullOrEmpty(loader);
+            string loaderName = CfWidgetLoaderName(loader);
+            for (int i = 0; i < versions.Count; i++)
+            {
+                string token = Convert.ToString(versions[i]);
+                if (!string.IsNullOrEmpty(mc) && string.Equals(token, mc, StringComparison.OrdinalIgnoreCase)) hasMc = true;
+                if (!string.IsNullOrEmpty(loaderName) && string.Equals(token, loaderName, StringComparison.OrdinalIgnoreCase)) hasLoader = true;
+            }
+            return hasMc && hasLoader;
+        }
+
+        private static string CfWidgetLoaderName(string loader)
+        {
+            if (string.Equals(loader, "neoforge", StringComparison.OrdinalIgnoreCase)) return "NeoForge";
+            if (string.Equals(loader, "forge", StringComparison.OrdinalIgnoreCase)) return "Forge";
+            if (string.Equals(loader, "fabric", StringComparison.OrdinalIgnoreCase)) return "Fabric";
+            if (string.Equals(loader, "quilt", StringComparison.OrdinalIgnoreCase)) return "Quilt";
+            return "";
+        }
+
+        private static ModFile CfWidgetFile(JMap item, string modId)
+        {
+            string id = item.Str("id", "");
+            string fileName = item.Str("name", "");
+            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(fileName)) return null;
             ModFile file = new ModFile();
             file.Source = "curseforge";
             file.Id = id;
-            file.ModId = project.Id;
-            file.Name = download.Str("display", fileName);
+            file.ModId = modId;
+            file.Name = item.Str("display", fileName);
             file.FileName = fileName;
             file.VersionNumber = file.Name;
-            file.Size = download.Long("filesize", 0);
+            file.Size = item.Long("filesize", 0);
             file.DownloadUrl = BuildCurseCdnUrl(file.Id, fileName);
-            file.GameVersions = JoinList(download.List("versions"));
-            result.Add(file);
-            return result;
+            file.ReleaseType = string.Equals(item.Str("type", "release"), "release", StringComparison.OrdinalIgnoreCase) ? "release" : "beta";
+            file.GameVersions = JoinList(item.List("versions"));
+            return file;
         }
 
         private static string BuildCurseCdnUrl(string fileId, string fileName)
@@ -325,7 +416,7 @@ namespace CubeLauncher.Core
             if (!long.TryParse(fileId, out id) || string.IsNullOrEmpty(fileName)) return "";
             long folder = id / 1000;
             long leaf = id % 1000;
-            return "https://edge.forgecdn.net/files/" + folder.ToString() + "/" + leaf.ToString("000") + "/" + Uri.EscapeDataString(fileName);
+            return "https://mediafilez.forgecdn.net/files/" + folder.ToString() + "/" + leaf.ToString("000") + "/" + Uri.EscapeDataString(fileName);
         }
 
         private static List<ModFile> LoadModrinthFiles(AppConfig config, ModProject project, string mc, string loader)
