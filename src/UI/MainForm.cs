@@ -666,7 +666,7 @@ namespace CubeLauncher.UI
             {
                 base.OnPaint(e);
                 Graphics g = e.Graphics;
-                Ui.FillLiquidGlass(g, new Rectangle(0, 0, Width, Height), 0, _glassPhase, Theme.Cyan);
+                Ui.FillLiquidGlass(g, new Rectangle(0, 0, Width, Height), 0, _glassPhase, Theme.Accent);
                 using (SolidBrush brush = new SolidBrush(Theme.Alpha(Theme.Accent, 9)))
                     g.FillEllipse(brush, -90, Height - 220, 300, 300);
                 using (Pen pen = new Pen(Theme.BorderSoft, 1f))

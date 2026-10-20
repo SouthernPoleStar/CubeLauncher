@@ -223,7 +223,7 @@ namespace CubeLauncher.UI
 
         private void DrawGrid(Graphics g, Rectangle rect)
         {
-            using (Pen pen = new Pen(Color.FromArgb(11, 255, 255, 255), 1f))
+            using (Pen pen = new Pen(Color.FromArgb(14, 21, 33, 25), 1f))
             {
                 for (int x = 34; x < rect.Width; x += 34) g.DrawLine(pen, x, 0, x, rect.Height);
                 for (int y = 0; y < rect.Height; y += 34) g.DrawLine(pen, 0, y, rect.Width, y);
@@ -312,7 +312,7 @@ namespace CubeLauncher.UI
                 g.FillPolygon(brush, new PointF[] { left, mid, bottom, new PointF(left.X, left.Y + h * 0.55f) });
             using (SolidBrush brush = new SolidBrush(dark))
                 g.FillPolygon(brush, new PointF[] { mid, right, new PointF(right.X, right.Y + h * 0.55f), bottom });
-            using (Pen pen = new Pen(Color.FromArgb(90, 255, 255, 255), 1f))
+            using (Pen pen = new Pen(Color.FromArgb(70, 21, 33, 25), 1f))
                 g.DrawPolygon(pen, new PointF[] { top, right, mid, left });
         }
     }

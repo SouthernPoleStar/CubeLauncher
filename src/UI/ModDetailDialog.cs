@@ -220,8 +220,8 @@ namespace CubeLauncher.UI
             DoubleBuffered = true;
 
             _log = new RichTextBox();
-            _log.BackColor = Color.FromArgb(10, 14, 18);
-            _log.ForeColor = Theme.TextSoft;
+            _log.BackColor = Theme.Bg;
+            _log.ForeColor = Theme.Text;
             _log.BorderStyle = BorderStyle.None;
             _log.Font = Theme.Mono(8.4f);
             _log.ReadOnly = true;
@@ -279,7 +279,7 @@ namespace CubeLauncher.UI
 
             Panel body = new Panel();
             body.Dock = DockStyle.Fill;
-            body.BackColor = Color.FromArgb(10, 14, 18);
+            body.BackColor = Theme.Bg;
             body.Controls.Add(_log);
             Controls.Add(body);
             body.BringToFront();
