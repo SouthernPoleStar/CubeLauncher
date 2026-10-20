@@ -27,6 +27,12 @@ namespace CubeLauncher.UI
                 else Main.LaunchAsync(version.Id);
             };
             _hero.InstallClicked += delegate { Main.OpenInstallDialog(""); };
+            _hero.InstanceSelected += delegate(string id) { if (!string.IsNullOrEmpty(id)) Main.SetSelectedVersion(id); };
+            _hero.ManageClicked += delegate
+            {
+                InstalledVersion version = Main.SelectedVersion;
+                if (version != null) Main.OpenInstanceManager(version.Id);
+            };
             Controls.Add(_hero);
 
             _versions = new StatCard(IconKind.Layers, "已安装版本", "0", "个独立实例", Theme.Accent);
@@ -46,6 +52,7 @@ namespace CubeLauncher.UI
         public override void RefreshView()
         {
             InstalledVersion selected = Main.SelectedVersion;
+            _hero.SetInstances(Main.Installed, selected == null ? "" : selected.Id);
             _hero.SetVersion(selected);
             _versions.Value = Main.Installed.Count.ToString();
             _versions.Sub = Main.Installed.Count > 0 ? "个独立实例" : "先安装一个版本";
@@ -112,11 +119,17 @@ namespace CubeLauncher.UI
         private readonly Timer _timer;
         private readonly AccentButton _launch;
         private readonly AccentButton _install;
+        private readonly AccentButton _manage;
+        private readonly DarkComboBox _instances;
+        private readonly List<InstalledVersion> _instanceList = new List<InstalledVersion>();
+        private bool _updatingInstances;
         private InstalledVersion _version;
         private float _phase;
 
         public event EventHandler LaunchClicked;
         public event EventHandler InstallClicked;
+        public event EventHandler ManageClicked;
+        public event Action<string> InstanceSelected;
 
         public HomeHero(MainForm main)
         {
@@ -144,6 +157,26 @@ namespace CubeLauncher.UI
             _install.Click += delegate { EventHandler handler = InstallClicked; if (handler != null) handler(this, EventArgs.Empty); };
             Controls.Add(_install);
 
+            _manage = new AccentButton();
+            _manage.Text = "管理实例";
+            _manage.Style = ButtonStyle.Ghost;
+            _manage.Width = 96;
+            _manage.Height = 36;
+            _manage.Location = new Point(380, 184);
+            _manage.Click += delegate { EventHandler handler = ManageClicked; if (handler != null) handler(this, EventArgs.Empty); };
+            Controls.Add(_manage);
+
+            _instances = new DarkComboBox();
+            _instances.SetBounds(38, 184, 330, 36);
+            _instances.SelectedIndexChanged += delegate
+            {
+                if (_updatingInstances) return;
+                int index = _instances.SelectedIndex;
+                if (index >= 0 && index < _instanceList.Count && InstanceSelected != null)
+                    InstanceSelected(_instanceList[index].Id);
+            };
+            Controls.Add(_instances);
+
             _timer = new Timer();
             _timer.Interval = 40;
             _timer.Tick += delegate
@@ -170,8 +203,38 @@ namespace CubeLauncher.UI
                 _launch.Text = "启动游戏";
                 _launch.Icon = IconKind.Play;
             }
+            if (version != null)
+            {
+                _updatingInstances = true;
+                for (int i = 0; i < _instanceList.Count; i++)
+                    if (string.Equals(_instanceList[i].Id, version.Id, StringComparison.OrdinalIgnoreCase))
+                        _instances.SelectedIndex = i;
+                _updatingInstances = false;
+            }
             _launch.Invalidate();
             Invalidate();
+        }
+
+        public void SetInstances(List<InstalledVersion> instances, string selectedId)
+        {
+            _instanceList.Clear();
+            List<object> labels = new List<object>();
+            if (instances != null)
+            {
+                for (int i = 0; i < instances.Count; i++)
+                {
+                    _instanceList.Add(instances[i]);
+                    labels.Add(instances[i].DisplayName);
+                }
+            }
+            _updatingInstances = true;
+            _instances.Enabled = _instanceList.Count > 0;
+            _instances.SetItems(labels.Count == 0 ? new object[] { "尚未安装实例" } : labels.ToArray());
+            int selected = 0;
+            for (int i = 0; i < _instanceList.Count; i++)
+                if (string.Equals(_instanceList[i].Id, selectedId, StringComparison.OrdinalIgnoreCase)) selected = i;
+            if (_instanceList.Count > 0) _instances.SelectedIndex = selected;
+            _updatingInstances = false;
         }
 
         private void LayoutButtons()
@@ -202,20 +265,6 @@ namespace CubeLauncher.UI
                 new Rectangle(38, 106, 520, 48), TextAlign.LeftTop);
             Ui.Text(g, "国内镜像加速 · 一键安装 Forge / Fabric · 正版与皮肤站登录",
                 Theme.Font(9f), Theme.TextSoft, new Rectangle(40, 160, Math.Max(300, Width - 520), 24), TextAlign.LeftMiddle);
-
-            // Selected instance chip.
-            string chip = _version == null ? "尚未选择实例" : (_version.Loader == "vanilla" ? _version.DisplayName + "  ·  原版" : _version.DisplayName);
-            using (Font font = Theme.Font(8.5f, FontStyle.Bold))
-            {
-                Size size = TextRenderer.MeasureText(chip, font);
-                int chipWidth = Math.Min(Width - 480, size.Width + 46);
-                Rectangle chipRect = new Rectangle(40, 190, Math.Max(150, chipWidth), 30);
-                Ui.FillRound(g, chipRect, 15, Theme.SecondaryContainer);
-                Ui.StrokeRound(g, chipRect, 15, Color.Transparent, 1f);
-                using (SolidBrush dot = new SolidBrush(_version == null ? Theme.Gold : Theme.Accent))
-                    g.FillEllipse(dot, chipRect.X + 13, chipRect.Y + 12, 6, 6);
-                Ui.Text(g, chip, font, Theme.OnSecondaryContainer, new Rectangle(chipRect.X + 26, chipRect.Y, chipRect.Width - 34, chipRect.Height), TextAlign.LeftMiddle);
-            }
 
             DrawIllustration(g, rect);
             if (Width < 700) return;

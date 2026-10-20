@@ -200,6 +200,20 @@ namespace CubeLauncher.UI
             return null;
         }
 
+        public InstalledVersion FindInstalledVersion(string id)
+        {
+            return FindInstalled(id);
+        }
+
+        public void OpenInstanceManager(string id)
+        {
+            InstalledVersion version = FindInstalled(id);
+            if (version == null) { ToastError("实例不存在"); return; }
+            using (InstanceDetailDialog dialog = new InstanceDetailDialog(this, version))
+                dialog.ShowDialog(this);
+            RefreshData();
+        }
+
         private void SelectInitialVersion()
         {
             LoadInstalled();

@@ -92,13 +92,18 @@ namespace CubeLauncher.Core
 
         public static ModSearchResult Search(AppConfig config, string source, string query, string mc, string loader, int offset, int limit)
         {
-            return SearchModrinth(config, query, mc, loader, offset, limit);
+            return SearchType(config, source, query, mc, loader, offset, limit, "mod");
         }
 
-        private static ModSearchResult SearchModrinth(AppConfig config, string query, string mc, string loader, int offset, int limit)
+        public static ModSearchResult SearchType(AppConfig config, string source, string query, string mc, string loader, int offset, int limit, string projectType)
+        {
+            return SearchModrinth(config, query, mc, loader, offset, limit, projectType);
+        }
+
+        private static ModSearchResult SearchModrinth(AppConfig config, string query, string mc, string loader, int offset, int limit, string projectType)
         {
             List<string> facets = new List<string>();
-            facets.Add("[\"project_type:mod\"]");
+            facets.Add("[\"project_type:" + (string.IsNullOrEmpty(projectType) ? "mod" : projectType) + "\"]");
             if (!string.IsNullOrEmpty(mc)) facets.Add("[\"versions:" + mc + "\"]");
             string loaderName = ModrinthLoader(loader);
             if (!string.IsNullOrEmpty(loaderName)) facets.Add("[\"categories:" + loaderName + "\"]");

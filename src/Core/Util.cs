@@ -214,6 +214,12 @@ namespace CubeLauncher.Core
             if (string.IsNullOrEmpty(url)) return;
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
         }
+
+        public static void OpenFile(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
     }
 
     public sealed class ProcessResult

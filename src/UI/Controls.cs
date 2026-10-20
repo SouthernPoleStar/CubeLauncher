@@ -149,14 +149,20 @@ namespace CubeLauncher.UI
             int iconW = Icon.HasValue ? IconSize + 8 : 0;
             Size textSize = TextRenderer.MeasureText(Text, Font);
             int total = iconW + textSize.Width;
-            int startX = (Width - total) / 2;
+            int startX = Math.Max(8, (Width - total) / 2);
+            Rectangle textRect;
             if (Icon.HasValue)
             {
                 Rectangle iconRect = new Rectangle(startX, (Height - IconSize) / 2, IconSize, IconSize);
                 Ui.DrawIcon(g, Icon.Value, iconRect, textColor, 1.8f);
+                textRect = new Rectangle(startX + iconW, 0, Width - (startX + iconW) - 8, Height);
+                Ui.Text(g, Text, Font, textColor, textRect, TextAlign.LeftMiddle);
             }
-            Rectangle textRect = new Rectangle(startX + iconW, 0, textSize.Width + 4, Height);
-            Ui.Text(g, Text, Font, textColor, textRect, TextAlign.LeftMiddle);
+            else
+            {
+                textRect = new Rectangle(8, 0, Width - 16, Height);
+                Ui.Text(g, Text, Font, textColor, textRect, TextAlign.CenterMiddle);
+            }
         }
     }
 

@@ -48,6 +48,7 @@ Copy-Item (Join-Path $root 'assets\icon-preview.png') (Join-Path $dist 'assets')
 Copy-Item (Join-Path $root 'assets\screenshot-home.png') (Join-Path $dist 'assets') -Force
 Copy-Item (Join-Path $root 'assets\screenshot-mods.png') (Join-Path $dist 'assets') -Force
 Copy-Item (Join-Path $root 'assets\screenshot-settings.png') (Join-Path $dist 'assets') -Force
+Copy-Item (Join-Path $root 'assets\screenshot-instances.png') (Join-Path $dist 'assets') -Force
 
 $zip = Join-Path $release 'CubeLauncher-1.0.0-win64.zip'
 if (Test-Path $zip) { Remove-Item $zip -Force }

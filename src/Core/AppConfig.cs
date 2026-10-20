@@ -52,6 +52,26 @@ namespace CubeLauncher.Core
             return Path.Combine(InstanceDir(versionId), "mods");
         }
 
+        public string ResourcePacksDir(string versionId)
+        {
+            return Path.Combine(InstanceDir(versionId), "resourcepacks");
+        }
+
+        public string ShaderPacksDir(string versionId)
+        {
+            return Path.Combine(InstanceDir(versionId), "shaderpacks");
+        }
+
+        public string SavesDir(string versionId)
+        {
+            return Path.Combine(InstanceDir(versionId), "saves");
+        }
+
+        public string ScreenshotsDir(string versionId)
+        {
+            return Path.Combine(InstanceDir(versionId), "screenshots");
+        }
+
         public Account FindAccount(string id)
         {
             if (Accounts == null) return null;

@@ -81,6 +81,7 @@ namespace CubeLauncher.UI
                 row.Launch += delegate(object sender, EventArgs e) { Main.LaunchAsync(((VersionRow)sender).VersionId); };
                 row.Delete += delegate(object sender, EventArgs e) { Main.RemoveVersion(((VersionRow)sender).Installed); };
                 row.OpenFolder += delegate(object sender, EventArgs e) { Util.OpenFolder(Main.Config.InstanceDir(((VersionRow)sender).VersionId)); };
+                row.Manage += delegate(object sender, EventArgs e) { Main.OpenInstanceManager(((VersionRow)sender).VersionId); };
                 Add(row);
                 added++;
             }
@@ -133,6 +134,7 @@ namespace CubeLauncher.UI
     public sealed class VersionRow : Control
     {
         private readonly AccentButton _action;
+        private readonly AccentButton _manage;
         private readonly IconButton _folder;
         private readonly IconButton _delete;
         private VersionEntry _entry;
@@ -146,6 +148,7 @@ namespace CubeLauncher.UI
         public event EventHandler Install;
         public event EventHandler Delete;
         public event EventHandler OpenFolder;
+        public event EventHandler Manage;
 
         public VersionRow()
         {
@@ -165,6 +168,14 @@ namespace CubeLauncher.UI
                 else { EventHandler h = Install; if (h != null) h(this, EventArgs.Empty); }
             };
             Controls.Add(_action);
+
+            _manage = new AccentButton();
+            _manage.Text = "管理";
+            _manage.Style = ButtonStyle.Ghost;
+            _manage.Width = 64;
+            _manage.Height = 32;
+            _manage.Click += delegate { EventHandler h = Manage; if (h != null) h(this, EventArgs.Empty); };
+            Controls.Add(_manage);
 
             _folder = new IconButton();
             _folder.Icon = IconKind.Folder;
@@ -195,6 +206,7 @@ namespace CubeLauncher.UI
             _action.IconSize = 13;
             _folder.Visible = true;
             _delete.Visible = true;
+            _manage.Visible = true;
             LayoutButtons();
             Invalidate();
         }
@@ -210,6 +222,7 @@ namespace CubeLauncher.UI
             _action.IconSize = 13;
             _folder.Visible = false;
             _delete.Visible = false;
+            _manage.Visible = false;
             LayoutButtons();
             Invalidate();
         }
@@ -217,8 +230,9 @@ namespace CubeLauncher.UI
         private void LayoutButtons()
         {
             _action.Location = new Point(Width - 104, (Height - _action.Height) / 2);
-            _delete.Location = new Point(Width - 142, (Height - 30) / 2);
-            _folder.Location = new Point(Width - 178, (Height - 30) / 2);
+            _manage.Location = new Point(Width - 176, (Height - _manage.Height) / 2);
+            _delete.Location = new Point(Width - 214, (Height - 30) / 2);
+            _folder.Location = new Point(Width - 250, (Height - 30) / 2);
         }
 
         protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
