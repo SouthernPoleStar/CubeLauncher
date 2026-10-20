@@ -30,7 +30,6 @@ namespace CubeLauncher.UI
         public JavaInfo Java;
         public bool Busy;
         public event Action DataChanged;
-        private PageTransition _transition;
         private Timer _windowFade;
         private Timer _pageSlide;
 
@@ -68,10 +67,6 @@ namespace CubeLauncher.UI
 
             main.Controls.Add(_viewHost);
             main.Controls.Add(_topBar);
-            _transition = new PageTransition();
-            _transition.Dock = DockStyle.Fill;
-            main.Controls.Add(_transition);
-            _transition.BringToFront();
             Controls.Add(main);
             Controls.Add(_sidebar);
 
@@ -213,23 +208,41 @@ namespace CubeLauncher.UI
         public void ShowPage(Page page)
         {
             if ((int)page < 0 || (int)page >= _views.Length) return;
+            int oldIndex = (int)_page;
             bool changed = _page != page;
             _page = page;
             Log.Info("切换到页面 " + page);
+            _viewHost.SuspendLayout();
+            BaseView previous = changed && oldIndex >= 0 && oldIndex < _views.Length ? _views[oldIndex] : null;
             for (int i = 0; i < _views.Length; i++)
             {
-                _views[i].Visible = i == (int)page;
-                if (i != (int)page) _views[i].Dock = DockStyle.Fill;
+                if (i == (int)page)
+                {
+                    _views[i].Visible = true;
+                }
+                else if (changed && _views[i] == previous)
+                {
+                    // Keep the old page underneath until the sliding page
+                    // fully covers it; this removes the one-frame white flash.
+                    _views[i].Visible = true;
+                    _views[i].Enabled = false;
+                }
+                else
+                {
+                    _views[i].Visible = false;
+                    _views[i].Dock = DockStyle.Fill;
+                }
             }
+            _viewHost.ResumeLayout(false);
             _sidebar.SetPage((int)page);
             _topBar.SetPage((int)page);
             BaseView view = _views[(int)page];
             if (view != null) view.OnShown();
-            if (changed) AnimatePage(view);
-            if (changed && _transition != null) _transition.Play();
+            if (changed) AnimatePage(view, previous);
+            else if (view != null) view.BringToFront();
         }
 
-        private void AnimatePage(BaseView view)
+        private void AnimatePage(BaseView view, BaseView previous)
         {
             if (view == null || _viewHost.ClientSize.Width <= 0 || _viewHost.ClientSize.Height <= 0) return;
             if (_pageSlide != null) { _pageSlide.Stop(); _pageSlide.Dispose(); _pageSlide = null; }
@@ -252,6 +265,18 @@ namespace CubeLauncher.UI
                     _pageSlide = null;
                     view.Top = 0;
                     view.Dock = DockStyle.Fill;
+                    for (int i = 0; i < _views.Length; i++)
+                    {
+                        if (_views[i] != view)
+                        {
+                            _views[i].Visible = false;
+                            _views[i].Enabled = true;
+                            _views[i].Dock = DockStyle.Fill;
+                        }
+                    }
+                    if (previous != null) previous.Enabled = true;
+                    view.BringToFront();
+                    view.Invalidate();
                 }
             };
             _pageSlide.Start();
