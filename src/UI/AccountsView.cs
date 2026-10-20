@@ -115,6 +115,7 @@ namespace CubeLauncher.UI
     {
         private readonly AccentButton _select;
         private readonly IconButton _delete;
+        private Image _head;
         private bool _selected;
         public Account Account;
         public event EventHandler SelectRequested;
@@ -129,6 +130,14 @@ namespace CubeLauncher.UI
             BackColor = Color.Transparent;
             Height = 92;
             Cursor = Cursors.Hand;
+            if (account != null && account.IsMicrosoft)
+            {
+                main.Images.RequestHead(this, account, delegate(Image image)
+                {
+                    _head = image;
+                    Invalidate();
+                });
+            }
 
             _select = new AccentButton();
             _select.Text = selected ? "当前账户" : "设为默认";
@@ -174,7 +183,7 @@ namespace CubeLauncher.UI
             Ui.FillRound(g, rect, 13, _selected ? Theme.Alpha(Theme.Accent, 10) : Theme.Card);
             Ui.StrokeRound(g, rect, 13, _selected ? Theme.Alpha(Theme.Accent, 90) : Theme.BorderSoft, 1f);
             Color accent = Account.IsMicrosoft ? Theme.Cyan : (Account.IsYggdrasil ? Theme.Purple : Theme.Gold);
-            Ui.DrawAvatar(g, new Rectangle(18, 22, 48, 48), Account.Name, accent, _selected);
+            Ui.DrawAvatar(g, new Rectangle(18, 22, 48, 48), Account.Name, accent, _selected, _head);
             Ui.Text(g, Account.Name, Theme.Font(10.5f, FontStyle.Bold), Theme.Text, new Rectangle(82, 18, Width - 250, 24), TextAlign.LeftMiddle);
             Ui.Text(g, Account.TypeLabel + (Account.IsYggdrasil && !string.IsNullOrEmpty(Account.AuthServer) ? " · " + ShortHost(Account.AuthServer) : ""),
                 Theme.Font(8f), Theme.Muted, new Rectangle(82, 42, Width - 250, 18), TextAlign.LeftMiddle);

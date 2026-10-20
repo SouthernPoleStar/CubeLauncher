@@ -746,6 +746,8 @@ namespace CubeLauncher.UI
         {
             private readonly MainForm _main;
             private bool _hover;
+            private Image _head;
+            private string _headAccountId = "";
 
             public AccountChip(MainForm main)
             {
@@ -774,7 +776,19 @@ namespace CubeLauncher.UI
                     Ui.Text(g, "点击登录", Theme.Font(8f), Theme.Muted, new Rectangle(64, 38, 100, 18), TextAlign.LeftMiddle);
                     return;
                 }
-                Ui.DrawAvatar(g, new Rectangle(14, 16, 40, 40), account.Name, account.IsMicrosoft ? Theme.Cyan : (account.IsYggdrasil ? Theme.Purple : Theme.Gold), false);
+                if (account.IsMicrosoft && _headAccountId != account.Id)
+                {
+                    _headAccountId = account.Id;
+                    _head = null;
+                    _main.Images.RequestHead(this, account, delegate(Image image)
+                    {
+                        _head = image;
+                        Invalidate();
+                    });
+                }
+                Ui.DrawAvatar(g, new Rectangle(14, 16, 40, 40), account.Name,
+                    account.IsMicrosoft ? Theme.Cyan : (account.IsYggdrasil ? Theme.Purple : Theme.Gold), false,
+                    account.IsMicrosoft ? _head : null);
                 Ui.Text(g, account.Name, Theme.Font(9.2f, FontStyle.Bold), Theme.Text, new Rectangle(64, 15, 110, 20), TextAlign.LeftMiddle);
                 Ui.Text(g, account.TypeLabel, Theme.Font(7.8f), Theme.Muted, new Rectangle(64, 37, 105, 18), TextAlign.LeftMiddle);
                 Ui.DrawIcon(g, IconKind.ChevronRight, new Rectangle(Width - 24, 30, 12, 12), Theme.Faint, 1.4f);

@@ -199,12 +199,40 @@ namespace CubeLauncher.UI
 
         public static void DrawAvatar(Graphics g, Rectangle bounds, string name, Color accent, bool selected)
         {
+            DrawAvatar(g, bounds, name, accent, selected, null);
+        }
+
+        public static void DrawAvatar(Graphics g, Rectangle bounds, string name, Color accent, bool selected, Image head)
+        {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             using (GraphicsPath path = new GraphicsPath())
             {
                 path.AddEllipse(bounds);
                 using (LinearGradientBrush brush = new LinearGradientBrush(bounds, Theme.Mix(accent, Color.Black, 0.25), Theme.Mix(accent, Color.Black, 0.62), 45f))
                     g.FillPath(brush, path);
+
+                if (head != null)
+                {
+                    GraphicsState state = g.Save();
+                    g.SetClip(path);
+                    g.InterpolationMode = InterpolationMode.NearestNeighbor;
+                    g.PixelOffsetMode = PixelOffsetMode.Half;
+                    g.DrawImage(head, bounds);
+                    g.Restore(state);
+                }
+                else
+                {
+                    string initial = string.IsNullOrEmpty(name) ? "?" : name.Substring(0, 1).ToUpperInvariant();
+                    using (Font font = Theme.Display(bounds.Height * 0.42f, FontStyle.Bold))
+                    {
+                        StringFormat format = new StringFormat();
+                        format.Alignment = StringAlignment.Center;
+                        format.LineAlignment = StringAlignment.Center;
+                        using (SolidBrush brush = new SolidBrush(Color.White))
+                            g.DrawString(initial, font, brush, bounds, format);
+                    }
+                }
+
                 if (selected)
                 {
                     using (Pen pen = new Pen(Theme.Accent, 2f))
@@ -214,15 +242,6 @@ namespace CubeLauncher.UI
                         outer.AddEllipse(outerRect);
                         g.DrawPath(pen, outer);
                     }
-                }
-                string initial = string.IsNullOrEmpty(name) ? "?" : name.Substring(0, 1).ToUpperInvariant();
-                using (Font font = Theme.Display(bounds.Height * 0.42f, FontStyle.Bold))
-                {
-                    StringFormat format = new StringFormat();
-                    format.Alignment = StringAlignment.Center;
-                    format.LineAlignment = StringAlignment.Center;
-                    using (SolidBrush brush = new SolidBrush(Color.White))
-                        g.DrawString(initial, font, brush, bounds, format);
                 }
             }
         }
