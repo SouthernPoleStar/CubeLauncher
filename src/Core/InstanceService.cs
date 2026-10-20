@@ -203,7 +203,13 @@ namespace CubeLauncher.Core
             item.Sha1 = file.Sha1;
             item.Size = file.Size;
             progress.SetStage("下载" + label + name);
-            Http.DownloadOne(item, progress.Token, null);
+            long expected = item.Size;
+            Http.DownloadOne(item, progress.Token, delegate(long downloaded)
+            {
+                double fraction = expected > 0 ? Math.Min(0.99, (double)downloaded / expected) : 0.5;
+                progress.Report(fraction, name + "  " + Util.HumanBytes(downloaded) +
+                    (expected > 0 ? " / " + Util.HumanBytes(expected) : ""));
+            });
         }
 
         private static string MinecraftOf(AppConfig config, string id)

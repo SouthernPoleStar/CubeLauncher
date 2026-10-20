@@ -424,7 +424,13 @@ namespace CubeLauncher.UI
                         item.Sha1 = file.Sha1;
                         item.Size = file.Size;
                         progress.SetStage("下载整合包 " + file.FileName);
-                        Http.DownloadOne(item, progress.Token, null);
+                        long expected = item.Size;
+                        Http.DownloadOne(item, progress.Token, delegate(long downloaded)
+                        {
+                            double ratio = expected > 0 ? Math.Min(0.99, (double)downloaded / expected) : 0.5;
+                            progress.Report(ratio, file.FileName + "  " + Util.HumanBytes(downloaded) +
+                                (expected > 0 ? " / " + Util.HumanBytes(expected) : ""));
+                        });
                         resultId = MrpackImporter.Import(Main.Config, Main.Versions, temp, progress);
                     };
                     dialog.Run();

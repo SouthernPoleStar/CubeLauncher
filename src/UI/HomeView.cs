@@ -263,7 +263,7 @@ namespace CubeLauncher.UI
                 new Rectangle(38, 58, 520, 48), TextAlign.LeftTop);
             Ui.Text(g, "随时出发。", Theme.Display(26f, FontStyle.Bold), Theme.Accent,
                 new Rectangle(38, 106, 520, 48), TextAlign.LeftTop);
-            Ui.Text(g, "国内镜像加速 · 一键安装 Forge / Fabric · 正版与皮肤站登录",
+            Ui.Text(g, "镜像加速 · 一键安装 Forge / Fabric · 正版与皮肤站登录",
                 Theme.Font(9f), Theme.TextSoft, new Rectangle(40, 160, Math.Max(300, Width - 520), 24), TextAlign.LeftMiddle);
 
             DrawIllustration(g, rect);
@@ -511,7 +511,7 @@ namespace CubeLauncher.UI
             int y = 54;
             DrawRow(g, ref y, IconKind.Java, "Java 运行时", _main.JavaStatusText, _main.JavaStatusDetail, Theme.Cyan);
             DrawRow(g, ref y, IconKind.User, "当前账户", _main.SelectedAccount == null ? "未登录" : _main.SelectedAccount.Name, _main.SelectedAccount == null ? "点击添加" : _main.SelectedAccount.TypeLabel, Theme.Gold);
-            DrawRow(g, ref y, IconKind.Globe, "下载源", "国内镜像优先", _main.Config.MirrorFirst ? "BMCLAPI / Modrinth / TUNA" : "官方源", Theme.Accent);
+            DrawRow(g, ref y, IconKind.Globe, "下载源", "镜像加速", _main.Config.MirrorFirst ? "BMCLAPI / Modrinth / TUNA" : "官方源", Theme.Accent);
             DrawRow(g, ref y, IconKind.Memory, "分配内存", _main.Config.MemoryMb + " MB", "可在设置中调整", Theme.Purple);
         }
 

@@ -232,8 +232,14 @@ namespace CubeLauncher.Core
                     item.Urls = Mirror.ModFileUrls(file.DownloadUrl, config.MirrorFirst);
                     item.Sha1 = file.Sha1;
                     item.Size = file.Size;
-                    progress.SetStage("下载模组 " + name + " (国内镜像优先)");
-                    Http.DownloadOne(item, progress.Token, null);
+                    progress.SetStage("下载模组 " + name);
+                    long expected = item.Size;
+                    Http.DownloadOne(item, progress.Token, delegate(long downloaded)
+                    {
+                        double fraction = expected > 0 ? Math.Min(0.99, (double)downloaded / expected) : 0.5;
+                        progress.Report(fraction, name + "  " + Util.HumanBytes(downloaded) +
+                            (expected > 0 ? " / " + Util.HumanBytes(expected) : ""));
+                    });
                     installed.Add(name);
                 }
             }

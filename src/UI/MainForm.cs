@@ -935,7 +935,7 @@ namespace CubeLauncher.UI
             {
                 _statusText = text;
                 _online = online;
-                _status.Text = online ? "●  " + text + "   |   国内镜像" : "●  " + text;
+                _status.Text = online ? "●  " + text + "   |   镜像加速" : "●  " + text;
                 _status.ForeColor = online ? Theme.Accent : Theme.Gold;
                 Invalidate();
             }

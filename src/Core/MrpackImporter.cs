@@ -170,7 +170,13 @@ namespace CubeLauncher.Core
                 item.Sha1 = file.Map("hashes").Str("sha1", "");
                 item.Size = file.Long("fileSize", 0);
                 progress.SetStage("下载 " + Path.GetFileName(relative));
-                Http.DownloadOne(item, progress.Token, null);
+                int fileIndex = i;
+                long expected = item.Size;
+                Http.DownloadOne(item, progress.Token, delegate(long downloaded)
+                {
+                    double ratio = expected > 0 ? Math.Min(1, (double)downloaded / expected) : 0.5;
+                    progress.Report(0.1 + 0.75 * ((fileIndex + ratio) / total), Path.GetFileName(relative));
+                });
                 progress.Report(0.1 + 0.75 * (i + 1) / total, Path.GetFileName(relative));
             }
         }
