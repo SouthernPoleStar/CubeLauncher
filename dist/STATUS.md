@@ -32,4 +32,4 @@ Modrinth：
 
 ## 字体
 
-上首标题宋体已作为资源编译进 `CubeLauncher.exe`，运行时不需要额外字体文件。
+字体已恢复为系统字体：正文和标题使用微软雅黑 UI（回退 Microsoft YaHei / Segoe UI），不再内嵌自定义字体。

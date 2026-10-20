@@ -259,9 +259,9 @@ namespace CubeLauncher.UI
 
             Ui.Text(g, "MINECRAFT  //  READY TO PLAY", Theme.Mono(8f), Theme.Alpha(Theme.Accent, 230),
                 new Rectangle(40, 34, Width - 80, 20), TextAlign.LeftMiddle);
-            Ui.Text(g, "方块世界，", Theme.Display(28f, FontStyle.Bold), Theme.Text,
+            Ui.Text(g, "方块世界，", Theme.Display(26f, FontStyle.Bold), Theme.Text,
                 new Rectangle(38, 58, 520, 48), TextAlign.LeftTop);
-            Ui.Text(g, "随时出发。", Theme.Display(28f, FontStyle.Bold), Theme.Accent,
+            Ui.Text(g, "随时出发。", Theme.Display(26f, FontStyle.Bold), Theme.Accent,
                 new Rectangle(38, 106, 520, 48), TextAlign.LeftTop);
             Ui.Text(g, "国内镜像加速 · 一键安装 Forge / Fabric · 正版与皮肤站登录",
                 Theme.Font(9f), Theme.TextSoft, new Rectangle(40, 160, Math.Max(300, Width - 520), 24), TextAlign.LeftMiddle);

@@ -35,7 +35,6 @@ Write-Host "编译 $($sources.Count) 个源文件..."
     "/out:$outExe" `
     "/win32icon:$(Join-Path $root 'assets\app.ico')" `
     "/win32manifest:$(Join-Path $root 'src\app.manifest')" `
-    "/resource:$(Join-Path $root 'assets\fonts\ShangShouBiaoTiSong.ttf'),CubeLauncher.Resources.ShangShouBiaoTiSong.ttf" `
     $references $sources
 
 if ($LASTEXITCODE -ne 0) { throw "编译失败，退出码 $LASTEXITCODE" }
