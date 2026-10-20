@@ -10,7 +10,6 @@ namespace CubeLauncher.Core
     public static class Mirror
     {
         public const string BmclApi = "https://bmclapi2.bangbang93.com";
-        public const string Mcim = "https://mod.mcimirror.top";
         public const string TunaAdoptium = "https://mirrors.tuna.tsinghua.edu.cn/Adoptium";
 
         public static List<string> Urls(string official, bool mirrorFirst)
@@ -66,9 +65,8 @@ namespace CubeLauncher.Core
                 case "authlib-injector.yushi.moe":
                     return BmclApi + "/mirrors/authlib-injector" + path + query;
                 case "api.modrinth.com":
-                    return Mcim + "/modrinth" + path + query;
                 case "cdn.modrinth.com":
-                    return Mcim + path + query;
+                    return url;
                 default:
                     return url;
             }
@@ -156,7 +154,7 @@ namespace CubeLauncher.Core
         {
             string path = "/v2/search?query=" + Uri.EscapeDataString(query ?? "") + "&facets=" + Uri.EscapeDataString(facets ?? "") +
                           "&offset=" + offset.ToString() + "&limit=" + limit.ToString() + "&index=relevance";
-            return new List<string>() { Mcim + "/modrinth" + path, "https://api.modrinth.com" + path };
+            return new List<string>() { "https://api.modrinth.com" + path };
         }
 
         public static List<string> ModrinthVersions(string project, string mc, string loader)
@@ -166,19 +164,19 @@ namespace CubeLauncher.Core
                 path += "?game_versions=" + Uri.EscapeDataString("[\"" + mc + "\"]");
             if (!string.IsNullOrEmpty(loader))
                 path += (path.IndexOf('?') >= 0 ? "&" : "?") + "loaders=" + Uri.EscapeDataString("[\"" + loader + "\"]");
-            return new List<string>() { Mcim + "/modrinth" + path, "https://api.modrinth.com" + path };
+            return new List<string>() { "https://api.modrinth.com" + path };
         }
 
         public static List<string> ModrinthProject(string project)
         {
             string path = "/v2/project/" + Uri.EscapeDataString(project);
-            return new List<string>() { Mcim + "/modrinth" + path, "https://api.modrinth.com" + path };
+            return new List<string>() { "https://api.modrinth.com" + path };
         }
 
         public static List<string> ModrinthVersion(string id)
         {
             string path = "/v2/version/" + Uri.EscapeDataString(id);
-            return new List<string>() { Mcim + "/modrinth" + path, "https://api.modrinth.com" + path };
+            return new List<string>() { "https://api.modrinth.com" + path };
         }
 
         public static List<string> ModFileUrls(string officialDownload, bool mirrorFirst)

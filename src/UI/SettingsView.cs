@@ -154,7 +154,7 @@ namespace CubeLauncher.UI
 
             _mirror = new ToggleSwitch();
             _downloadGroup.Controls.Add(_mirror);
-            AddCaption(_downloadGroup, "国内镜像优先 (BMCLAPI / MCIM / TUNA)", 68, 64);
+            AddCaption(_downloadGroup, "国内镜像优先 (BMCLAPI / TUNA)，Modrinth 直连官方源", 68, 64);
             AddCaption(_downloadGroup, "并发下载线程", 20, 120);
 
             _threads = new DarkComboBox();

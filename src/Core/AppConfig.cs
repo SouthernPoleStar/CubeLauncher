@@ -192,7 +192,7 @@ namespace CubeLauncher.Core
             Log.Initialize(Path.Combine(Config.LogsDir, "launcher.log"));
             EnsureLauncherProfiles();
             Log.Info("方块启动器 " + Version + " 启动，游戏目录: " + Config.GameDir);
-            Log.Info("下载策略: " + (Config.MirrorFirst ? "国内镜像优先 (BMCLAPI / MCIM / TUNA)" : "官方源优先"));
+            Log.Info("下载策略: " + (Config.MirrorFirst ? "国内镜像优先 (BMCLAPI / TUNA)，Modrinth 官方源" : "官方源优先"));
         }
 
         public static void Save()

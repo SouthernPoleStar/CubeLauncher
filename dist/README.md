@@ -26,7 +26,7 @@
   - Modrinth 搜索、项目详情、版本文件选择、一键安装。
   - 搜索结果中的模组名称与简介会自动翻译为中文（MyMemory，带内存缓存）；网络不可用时保留英文，不影响搜索。
   - 支持 Modrinth 的 WebP 封面；通过 Windows WIC 解码，不依赖额外图片库。
-  - 通过 MCIM 国内镜像读取元数据并下载文件；必需前置模组自动安装。
+  - 直接连接 Modrinth 官方 API 读取元数据并下载文件；必需前置模组自动安装。
 - **账户系统**
   - 微软正版：微软官方设备代码登录，Xbox Live / XSTS / Minecraft Services，支持正版皮肤与披风。
   - 第三方皮肤站：兼容 authlib-injector / Yggdrasil，内置 LittleSkin 预设，启动时自动注入皮肤。
@@ -58,7 +58,7 @@
 | Forge 安装器 / 库 | BMCLAPI Forge / Maven | Forge 官方 Maven |
 | NeoForge 安装器 / 库 | NeoForged CDN / BMCLAPI Maven | NeoForge 官方 Maven |
 | Fabric Meta / 库 | BMCLAPI `/fabric-meta`、`/maven` | Fabric 官方 |
-| Modrinth | MCIM (`mod.mcimirror.top`) | Modrinth 官方 |
+| Modrinth | Modrinth 官方 | Modrinth 官方 |
 | Java | 清华 TUNA Adoptium | Adoptium API |
 | authlib-injector | BMCLAPI 镜像 | 官方 |
 

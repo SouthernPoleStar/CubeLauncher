@@ -490,10 +490,10 @@ namespace CubeLauncher.UI
                 Theme.Font(7.8f), Theme.Muted, new Rectangle(40 + Math.Min(260, Width / 2), 0, 280, Height), TextAlign.LeftMiddle);
             using (Font font = Theme.Font(7.6f, FontStyle.Bold))
             {
-                Size size = TextRenderer.MeasureText("MCIM 国内镜像", font);
+                Size size = TextRenderer.MeasureText("Modrinth 官方源", font);
                 Rectangle badge = new Rectangle(Width - 180, (Height - 24) / 2, size.Width + 18, 24);
                 Ui.FillRound(g, badge, 12, Theme.Alpha(Theme.Accent, 18));
-                Ui.Text(g, "MCIM 国内镜像", font, Theme.Accent, badge, TextAlign.CenterMiddle);
+                Ui.Text(g, "Modrinth 官方源", font, Theme.Accent, badge, TextAlign.CenterMiddle);
             }
         }
 

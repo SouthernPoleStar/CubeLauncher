@@ -437,7 +437,7 @@ namespace CubeLauncher.UI
             _hint.Font = Theme.Font(8f);
             _hint.TextAlign = ContentAlignment.TopLeft;
             _hint.SetBounds(28, 278, 640, 110);
-            _hint.Text = "安装时会自动补齐 Minecraft 本体、依赖库、资源文件与 Java 运行时。\n国内下载优先使用 BMCLAPI / MCIM / TUNA 镜像，失败后自动回退到官方源。";
+            _hint.Text = "安装时会自动补齐 Minecraft 本体、依赖库、资源文件与 Java 运行时。\n国内下载优先使用 BMCLAPI / TUNA 镜像；Modrinth 直连官方源，失败后自动重试。";
             Controls.Add(_hint);
 
             Label source = new Label();
@@ -447,7 +447,7 @@ namespace CubeLauncher.UI
             source.Font = Theme.Font(8f, FontStyle.Bold);
             source.TextAlign = ContentAlignment.MiddleLeft;
             source.SetBounds(28, 404, 640, 22);
-            source.Text = "下载策略    BMCLAPI 游戏 / Forge / NeoForge    ·    MCIM 模组    ·    TUNA Java";
+            source.Text = "下载策略    BMCLAPI 游戏 / Forge / NeoForge    ·    Modrinth 模组    ·    TUNA Java";
             Controls.Add(source);
 
             _cancel = new AccentButton();
