@@ -13,6 +13,7 @@ namespace CubeLauncher.UI
         private readonly AccentButton _refresh;
         private readonly InstancePill _pill;
         private readonly SmoothScrollPanel _list;
+        private readonly SegmentedControl _tabs;
         private readonly Timer _debounce;
         private readonly Timer _watchdog;
         private readonly List<ModProject> _projects = new List<ModProject>();
@@ -21,14 +22,33 @@ namespace CubeLauncher.UI
         private int _total;
         private bool _loading;
         private string _lastContext = "";
+        private string _kind = "mod";
         private AccentButton _more;
 
         public ModsView(MainForm main) : base(main)
         {
             _search = new SearchBox();
-            _search.Placeholder = "搜索 Modrinth 模组、光影、优化模组...";
+            _search.Placeholder = "搜索 Modrinth 模组...";
             _search.TextChangedCustom += delegate { _debounce.Stop(); _debounce.Start(); };
             Controls.Add(_search);
+
+            _tabs = new SegmentedControl();
+            _tabs.Options = new string[] { "模组", "材质包", "光影", "整合包" };
+            _tabs.SelectedIndex = 0;
+            _tabs.SelectedIndexChanged += delegate
+            {
+                switch (_tabs.SelectedIndex)
+                {
+                    case 1: _kind = "resourcepack"; break;
+                    case 2: _kind = "shader"; break;
+                    case 3: _kind = "modpack"; break;
+                    default: _kind = "mod"; break;
+                }
+                _search.Placeholder = PlaceholderFor(_kind);
+                _lastContext = "";
+                StartSearch();
+            };
+            Controls.Add(_tabs);
 
             _refresh = new AccentButton();
             _refresh.Text = "刷新";
@@ -91,16 +111,33 @@ namespace CubeLauncher.UI
         private string ContextKey()
         {
             InstalledVersion version = Main.SelectedVersion;
-            return version == null ? "none" : version.Id + "|" + version.Loader + "|" + version.Minecraft;
+            return _kind + "|" + (version == null ? "none" : version.Id + "|" + version.Loader + "|" + version.Minecraft);
+        }
+
+        private static string PlaceholderFor(string kind)
+        {
+            if (kind == "resourcepack") return "搜索材质包，例如 Faithful、PureBDcraft...";
+            if (kind == "shader") return "搜索光影包，例如 Complementary、BSL...";
+            if (kind == "modpack") return "搜索整合包，例如 Fabulously Optimized...";
+            return "搜索 Modrinth 模组...";
+        }
+
+        private static string CategoryName(string kind)
+        {
+            if (kind == "resourcepack") return "材质包";
+            if (kind == "shader") return "光影包";
+            if (kind == "modpack") return "整合包";
+            return "模组";
         }
 
         private void LayoutChildren()
         {
             int left = 28;
-            _search.SetBounds(left, 18, Math.Max(320, ClientSize.Width - 300), 40);
-            _refresh.SetBounds(ClientSize.Width - 132, 18, 96, 40);
-            _pill.SetBounds(left, 72, ClientSize.Width - 56, 42);
-            _list.SetBounds(left, 124, ClientSize.Width - 56, Math.Max(100, ClientSize.Height - 148));
+            _tabs.SetBounds(left, 10, 480, 38);
+            _search.SetBounds(left, 62, Math.Max(320, ClientSize.Width - 300), 40);
+            _refresh.SetBounds(ClientSize.Width - 132, 62, 96, 40);
+            _pill.SetBounds(left, 116, ClientSize.Width - 56, 42);
+            _list.SetBounds(left, 168, ClientSize.Width - 56, Math.Max(100, ClientSize.Height - 192));
         }
 
         private void StartSearch()
@@ -121,10 +158,10 @@ namespace CubeLauncher.UI
             string source = "modrinth";
             string query = _search.Value.Trim();
             string mc = version == null ? "" : version.Minecraft;
-            string loader = version == null ? "" : version.Loader;
+            string loader = version == null || _kind != "mod" ? "" : version.Loader;
             Ui.Run(this, delegate
             {
-                ModSearchResult result = ModService.Search(Main.Config, source, query, mc, loader, 0, 20);
+                ModSearchResult result = ModService.SearchType(Main.Config, source, query, mc, loader, 0, 20, _kind);
                 Ui.Post(this, delegate
                 {
                     if (token != _request) return;
@@ -161,14 +198,14 @@ namespace CubeLauncher.UI
             string source = "modrinth";
             string query = _search.Value.Trim();
             string mc = version == null ? "" : version.Minecraft;
-            string loader = version == null ? "" : version.Loader;
+            string loader = version == null || _kind != "mod" ? "" : version.Loader;
             if (_more != null) { _more.Text = "加载中..."; _more.Enabled = false; }
             _watchdogRequest = token;
             _watchdog.Stop();
             _watchdog.Start();
             Ui.Run(this, delegate
             {
-                ModSearchResult result = ModService.Search(Main.Config, source, query, mc, loader, offset, 20);
+                ModSearchResult result = ModService.SearchType(Main.Config, source, query, mc, loader, offset, 20, _kind);
                 Ui.Post(this, delegate
                 {
                     if (token != _request) return;
@@ -211,7 +248,7 @@ namespace CubeLauncher.UI
 
         private void ShowLoading()
         {
-            LoadingCard loading = new LoadingCard("正在从 Modrinth 获取模组...");
+            LoadingCard loading = new LoadingCard("正在从 Modrinth 获取" + CategoryName(_kind) + "...");
             loading.Width = _list.Width - 4;
             _list.AddControl(loading);
         }
@@ -222,7 +259,8 @@ namespace CubeLauncher.UI
             if (_more != null) { _list.Content.Controls.Remove(_more); _more.Dispose(); _more = null; }
             if (_projects.Count == 0)
             {
-                EmptyState empty = new EmptyState(IconKind.Puzzle, "没有找到模组", "尝试更换关键词、来源或切换到匹配的版本。");
+                EmptyState empty = new EmptyState(IconKind.Puzzle, "没有找到" + CategoryName(_kind),
+                    "尝试更换关键词或切换到匹配的游戏版本。");
                 empty.Width = _list.Width - 4;
                 _list.AddControl(empty);
                 return;
@@ -234,6 +272,7 @@ namespace CubeLauncher.UI
                 ModCard card = new ModCard(Main, projects[i]);
                 card.Width = _list.Width - 4;
                 card.Height = 148;
+                card.SetAction(_kind == "modpack" ? "下载" : "安装");
                 card.InstallRequested += delegate(object sender, EventArgs e) { InstallLatest(((ModCard)sender).Project); };
                 card.OpenRequested += delegate(object sender, EventArgs e) { OpenDetail(((ModCard)sender).Project); };
                 _list.AddControl(card);
@@ -267,6 +306,11 @@ namespace CubeLauncher.UI
 
         private void OpenDetail(ModProject project)
         {
+            if (_kind != "mod")
+            {
+                InstallLatest(project);
+                return;
+            }
             InstalledVersion version = Main.SelectedVersion;
             if (version == null)
             {
@@ -286,9 +330,14 @@ namespace CubeLauncher.UI
                 Main.ToastError("请先安装一个游戏版本");
                 return;
             }
-            if (version.Loader == "vanilla")
+            if (_kind == "mod" && version.Loader == "vanilla")
             {
                 Main.ToastError("原版无法加载模组，请安装 Fabric 或 Forge 版本");
+                return;
+            }
+            if (_kind != "mod")
+            {
+                InstallPackLatest(project, version);
                 return;
             }
             int count = 0;
@@ -309,6 +358,29 @@ namespace CubeLauncher.UI
                 }
             }
             Main.Toast("已安装 " + (count > 0 ? count + " 个文件" : project.Name));
+            Main.RefreshData();
+        }
+
+        private void InstallPackLatest(ModProject project, InstalledVersion version)
+        {
+            bool modpack = _kind == "modpack";
+            string title = modpack ? "下载整合包" : (_kind == "shader" ? "安装光影包" : "安装材质包");
+            using (ProgressDialog dialog = new ProgressDialog(this, title, "正在获取 " + project.Name + " 的文件列表..."))
+            {
+                dialog.Work = delegate(ProgressSink progress)
+                {
+                    List<ModFile> files = ModService.LoadFiles(Main.Config, project, version.Minecraft, "");
+                    if (files.Count == 0) throw new Exception("没有找到适配 " + version.Minecraft + " 的文件");
+                    InstanceService.InstallPack(Main.Config, project, files[0], version.Id, _kind, progress);
+                };
+                dialog.Run();
+                if (dialog.Error != null)
+                {
+                    Main.ToastError(title + "失败: " + dialog.Error.Message);
+                    return;
+                }
+            }
+            Main.Toast(modpack ? "整合包已下载到实例 modpacks 目录" : "已安装到实例 " + version.DisplayName);
             Main.RefreshData();
         }
     }
@@ -410,7 +482,13 @@ namespace CubeLauncher.UI
                     _icon = image;
                     Invalidate();
                 });
-            }        }
+            }
+        }
+
+        public void SetAction(string text)
+        {
+            _install.Text = text;
+        }
 
         protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }

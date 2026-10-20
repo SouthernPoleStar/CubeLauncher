@@ -11,7 +11,7 @@
 
 | 首页 | 模组中心 |
 | --- | --- |
-| ![首页](assets/screenshot-home.png) | ![模组中心](assets/screenshot-mods.png) |
+| ![首页](assets/screenshot-home.png) | ![下载中心](assets/screenshot-mods.png) |
 | --- | --- |
 | ![实例管理](assets/screenshot-instances.png) | ![设置](assets/screenshot-settings.png) |
 ## 功能
@@ -40,7 +40,7 @@
 - **滑动动画**：切页从下方 14px 上滑淡入；左侧导航高亮块以 BackEase 回弹滑到目标项；分段按钮的选中滑块平滑移动。
 - **切页防闪烁**：旧页面在新页滑入期间保留为底层，新页面使用不透明背景，避免 Dock 切换时露出白屏/闪烁。
 - **实例管理**：从版本库或首页进入，管理模组、材质包、光影包、世界、截图，打开目录，并导出版本为 ZIP 整合包。
-- **材质/光影下载**：直接搜索 Modrinth 的 `resourcepack` / `shader` 项目并安装到当前实例。
+- **下载中心**：顶部横向二级菜单切换模组、材质包、光影和整合包，统一搜索 Modrinth；模组安装到 `mods`，材质/光影安装到当前实例，整合包下载到 `modpacks`。
 - **实例选择**：首页的下拉框选择启动实例；点击开始游戏时启动该实例及其独立世界/模组。
 - **字体**：恢复为系统字体——界面正文与标题使用微软雅黑 UI（缺失时回退 Microsoft YaHei / Segoe UI）；不再内嵌或携带自定义字体文件。
 

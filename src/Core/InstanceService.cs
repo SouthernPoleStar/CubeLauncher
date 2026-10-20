@@ -176,18 +176,33 @@ namespace CubeLauncher.Core
         public static void InstallPack(AppConfig config, ModProject project, ModFile file, string instanceId, string kind, ProgressSink progress)
         {
             if (file == null) throw new Exception("请选择要安装的文件");
-            string dir = string.Equals(kind, "shader", StringComparison.OrdinalIgnoreCase)
-                ? config.ShaderPacksDir(instanceId) : config.ResourcePacksDir(instanceId);
+            string dir;
+            string label;
+            if (string.Equals(kind, "shader", StringComparison.OrdinalIgnoreCase))
+            {
+                dir = config.ShaderPacksDir(instanceId);
+                label = "光影包 ";
+            }
+            else if (string.Equals(kind, "modpack", StringComparison.OrdinalIgnoreCase))
+            {
+                dir = config.ModpacksDir(instanceId);
+                label = "整合包 ";
+            }
+            else
+            {
+                dir = config.ResourcePacksDir(instanceId);
+                label = "材质包 ";
+            }
             Util.EnsureDirectory(dir);
             string name = string.IsNullOrEmpty(file.FileName) ? Util.SafeFileName(file.Name) + ".zip" : Util.SafeFileName(file.FileName);
             string dest = System.IO.Path.Combine(dir, name);
             DownloadItem item = new DownloadItem();
-            item.Name = (kind == "shader" ? "光影包 " : "材质包 ") + file.Name;
+            item.Name = label + file.Name;
             item.Destination = dest;
             item.Urls = Mirror.ModFileUrls(file.DownloadUrl, config.MirrorFirst);
             item.Sha1 = file.Sha1;
             item.Size = file.Size;
-            progress.SetStage("下载" + (kind == "shader" ? "光影包 " : "材质包 ") + name);
+            progress.SetStage("下载" + label + name);
             Http.DownloadOne(item, progress.Token, null);
         }
 

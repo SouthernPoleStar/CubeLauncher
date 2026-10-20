@@ -583,7 +583,7 @@ namespace CubeLauncher.UI
             private readonly AccountChip _accountChip;
             private readonly Label _java;
             private readonly Label _version;
-            private readonly string[] _labels = new string[] { "首页", "版本库", "模组中心", "账户中心", "设置" };
+            private readonly string[] _labels = new string[] { "首页", "版本库", "下载中心", "账户中心", "设置" };
             private readonly IconKind[] _icons = new IconKind[] { IconKind.Home, IconKind.Layers, IconKind.Puzzle, IconKind.User, IconKind.Settings };
             private readonly Timer _glassTimer;
             private float _glassPhase;
@@ -795,8 +795,8 @@ namespace CubeLauncher.UI
             private bool _online;
             private int _page;
 
-            private readonly string[] _titles = new string[] { "首页", "版本库", "模组中心", "账户中心", "设置" };
-            private readonly string[] _subtitles = new string[] { "为下一次冒险做好准备", "管理你的游戏版本与模组加载器", "从 Modrinth 发现模组", "正版、皮肤站与离线账户", "调整启动器的每一个细节" };
+            private readonly string[] _titles = new string[] { "首页", "版本库", "下载中心", "账户中心", "设置" };
+            private readonly string[] _subtitles = new string[] { "为下一次冒险做好准备", "管理你的游戏版本与模组加载器", "模组、材质包、光影与整合包", "正版、皮肤站与离线账户", "调整启动器的每一个细节" };
 
             public TopBar(MainForm main)
             {

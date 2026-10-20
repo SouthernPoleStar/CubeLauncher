@@ -62,6 +62,11 @@ namespace CubeLauncher.Core
             return Path.Combine(InstanceDir(versionId), "shaderpacks");
         }
 
+        public string ModpacksDir(string versionId)
+        {
+            return Path.Combine(InstanceDir(versionId), "modpacks");
+        }
+
         public string SavesDir(string versionId)
         {
             return Path.Combine(InstanceDir(versionId), "saves");
