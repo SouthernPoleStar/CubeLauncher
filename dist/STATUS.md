@@ -13,7 +13,9 @@ Modrinth：
 - MCIM 可用时优先走国内镜像；
 - MCIM 不可用时自动回退 Modrinth 官方 API；
 - 模组文件优先走 MCIM，失败后回退 `cdn.modrinth.com`；
-- 必需前置模组自动安装。
+- 必需前置模组自动安装；
+- 名称/简介通过 MyMemory 翻译为中文，带内存缓存；翻译失败时保留英文；
+- WebP 封面通过 Windows WIC 解码并缓存。
 
 ## 游戏下载与 Java
 

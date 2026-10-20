@@ -36,6 +36,18 @@ namespace CubeLauncher.UI
             };
         }
 
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                CreateParams cp = base.CreateParams;
+                // Let clicks pass through the fading curtain; otherwise the first
+                // click after navigation is swallowed by this overlay.
+                cp.ExStyle |= 0x20; // WS_EX_TRANSPARENT
+                return cp;
+            }
+        }
+
         public void Play()
         {
             if (Parent == null) return;

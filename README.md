@@ -24,6 +24,8 @@
   - Quilt：从 Quilt Meta 安装，兼容 Fabric 模组生态。
 - **两大模组站**
   - Modrinth 搜索、项目详情、版本文件选择、一键安装。
+  - 搜索结果中的模组名称与简介会自动翻译为中文（MyMemory，带内存缓存）；网络不可用时保留英文，不影响搜索。
+  - 支持 Modrinth 的 WebP 封面；通过 Windows WIC 解码，不依赖额外图片库。
   - 通过 MCIM 国内镜像读取元数据并下载文件；必需前置模组自动安装。
 - **账户系统**
   - 微软正版：微软官方设备代码登录，Xbox Live / XSTS / Minecraft Services，支持正版皮肤与披风。

@@ -14,8 +14,10 @@ namespace CubeLauncher.UI
         private readonly InstancePill _pill;
         private readonly SmoothScrollPanel _list;
         private readonly Timer _debounce;
+        private readonly Timer _watchdog;
         private readonly List<ModProject> _projects = new List<ModProject>();
         private int _request;
+        private int _watchdogRequest;
         private int _total;
         private bool _loading;
         private string _lastContext = "";
@@ -45,6 +47,19 @@ namespace CubeLauncher.UI
             _debounce = new Timer();
             _debounce.Interval = 420;
             _debounce.Tick += delegate { _debounce.Stop(); StartSearch(); };
+
+            _watchdog = new Timer();
+            _watchdog.Interval = 45000;
+            _watchdog.Tick += delegate
+            {
+                if (!_loading || _watchdogRequest != _request) return;
+                _watchdog.Stop();
+                _loading = false;
+                _list.Clear();
+                EmptyState empty = new EmptyState(IconKind.Warning, "搜索超时", "模组接口暂时没有响应，请检查网络后点刷新重试。");
+                empty.Width = _list.Width - 4;
+                _list.AddControl(empty);
+            };
 
             Resize += delegate { LayoutChildren(); };
             LayoutChildren();
@@ -91,6 +106,7 @@ namespace CubeLauncher.UI
         private void StartSearch()
         {
             _debounce.Stop();
+            IntPtr handle = Handle;
             _request++;
             int token = _request;
             _projects.Clear();
@@ -98,6 +114,9 @@ namespace CubeLauncher.UI
             _loading = true;
             _list.Clear();
             ShowLoading();
+            _watchdogRequest = token;
+            _watchdog.Stop();
+            _watchdog.Start();
             InstalledVersion version = Main.SelectedVersion;
             string source = "modrinth";
             string query = _search.Value.Trim();
@@ -109,16 +128,19 @@ namespace CubeLauncher.UI
                 Ui.Post(this, delegate
                 {
                     if (token != _request) return;
+                    _watchdog.Stop();
                     _loading = false;
                     _total = result.Total;
                     _projects.AddRange(result.Projects);
                     RenderResults(result.Projects, true);
+                    TranslateResults(result.Projects, token);
                 });
             }, delegate(Exception ex)
             {
                 Ui.Post(this, delegate
                 {
                     if (token != _request) return;
+                    _watchdog.Stop();
                     _loading = false;
                     _list.Clear();
                     EmptyState empty = new EmptyState(IconKind.Warning, "搜索失败", ex.Message);
@@ -141,25 +163,48 @@ namespace CubeLauncher.UI
             string mc = version == null ? "" : version.Minecraft;
             string loader = version == null ? "" : version.Loader;
             if (_more != null) { _more.Text = "加载中..."; _more.Enabled = false; }
+            _watchdogRequest = token;
+            _watchdog.Stop();
+            _watchdog.Start();
             Ui.Run(this, delegate
             {
                 ModSearchResult result = ModService.Search(Main.Config, source, query, mc, loader, offset, 20);
                 Ui.Post(this, delegate
                 {
                     if (token != _request) return;
+                    _watchdog.Stop();
                     _loading = false;
                     _total = result.Total;
                     _projects.AddRange(result.Projects);
                     RenderResults(result.Projects, false);
+                    TranslateResults(result.Projects, token);
                 });
             }, delegate(Exception ex)
             {
                 Ui.Post(this, delegate
                 {
                     if (token != _request) return;
+                    _watchdog.Stop();
                     _loading = false;
                     if (_more != null) { _more.Text = "加载更多"; _more.Enabled = true; }
                     Main.ToastError("加载失败: " + ex.Message);
+                });
+            });
+        }
+
+        private void TranslateResults(List<ModProject> projects, int token)
+        {
+            if (projects == null || projects.Count == 0) return;
+            Translator.TranslateProjects(projects, delegate(ModProject project)
+            {
+                Ui.Post(this, delegate
+                {
+                    if (token != _request || IsDisposed) return;
+                    for (int i = 0; i < _list.Content.Controls.Count; i++)
+                    {
+                        ModCard card = _list.Content.Controls[i] as ModCard;
+                        if (card != null && object.ReferenceEquals(card.Project, project)) card.Invalidate();
+                    }
                 });
             });
         }
@@ -358,8 +403,7 @@ namespace CubeLauncher.UI
             Resize += delegate { _install.Location = new Point(Width - 96, 18); };
             _install.Location = new Point(Width - 96, 18);
 
-            if (!string.IsNullOrEmpty(project.IconUrl) &&
-                project.IconUrl.IndexOf(".webp", StringComparison.OrdinalIgnoreCase) < 0)
+            if (!string.IsNullOrEmpty(project.IconUrl))
             {
                 main.Images.Request(this, project.IconUrl, delegate(Image image)
                 {

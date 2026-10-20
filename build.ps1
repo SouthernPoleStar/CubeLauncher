@@ -21,7 +21,10 @@ $references = @(
     '/r:System.Xml.dll',
     '/r:System.Xml.Linq.dll',
     '/r:System.Drawing.dll',
-    '/r:System.Windows.Forms.dll'
+    '/r:System.Windows.Forms.dll',
+    "/r:$(Join-Path (Split-Path $csc) 'WPF\PresentationCore.dll')",
+    "/r:$(Join-Path (Split-Path $csc) 'WPF\WindowsBase.dll')",
+    "/r:$(Join-Path (Split-Path $csc) 'System.Xaml.dll')"
 )
 
 $outExe = Join-Path $dist 'CubeLauncher.exe'
