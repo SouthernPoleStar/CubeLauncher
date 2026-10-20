@@ -229,13 +229,13 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillRound(g, rect, 12, _hover ? Theme.CardHover : Theme.Card);
-            Ui.StrokeRound(g, rect, 12, _hover ? Theme.Border : Theme.BorderSoft, 1f);
+            Ui.FillRound(g, rect, 22, _hover ? Theme.CardHover : Theme.SurfaceContainerHigh);
+            Ui.StrokeRound(g, rect, 22, _hover ? Theme.Accent : Theme.OutlineVariant, 1f);
 
             string loader = IsInstalled ? Installed.Loader : "vanilla";
             Color accent = loader == "fabric" ? Theme.Cyan : (loader == "forge" ? Theme.Gold : (loader == "quilt" ? Theme.Purple : Theme.Accent));
             Rectangle iconRect = new Rectangle(16, 15, 44, 44);
-            Ui.FillRound(g, iconRect, 10, Theme.Alpha(accent, 18));
+            Ui.FillRound(g, iconRect, 14, Theme.Alpha(accent, 20));
             Ui.DrawIcon(g, IsInstalled && loader != "vanilla" ? IconKind.Layers : (IsInstalled ? IconKind.Box : IconKind.Download),
                 new Rectangle(28, 27, 20, 20), accent, 1.6f);
 

@@ -11,26 +11,36 @@ namespace CubeLauncher.UI
 {
     public static class Theme
     {
-        public static readonly Color Bg = Color.FromArgb(9, 13, 17);
-        public static readonly Color Bg2 = Color.FromArgb(12, 17, 22);
-        public static readonly Color Sidebar = Color.FromArgb(13, 18, 24);
-        public static readonly Color Panel = Color.FromArgb(17, 24, 31);
-        public static readonly Color Card = Color.FromArgb(20, 28, 36);
-        public static readonly Color CardHover = Color.FromArgb(25, 35, 44);
-        public static readonly Color CardActive = Color.FromArgb(28, 40, 49);
-        public static readonly Color Border = Color.FromArgb(34, 47, 58);
-        public static readonly Color BorderSoft = Color.FromArgb(27, 38, 48);
-        public static readonly Color Text = Color.FromArgb(239, 246, 244);
-        public static readonly Color TextSoft = Color.FromArgb(184, 199, 205);
-        public static readonly Color Muted = Color.FromArgb(119, 138, 149);
-        public static readonly Color Faint = Color.FromArgb(76, 93, 104);
-        public static readonly Color Accent = Color.FromArgb(88, 227, 174);
-        public static readonly Color AccentDark = Color.FromArgb(35, 153, 115);
-        public static readonly Color AccentDeep = Color.FromArgb(18, 82, 66);
-        public static readonly Color Cyan = Color.FromArgb(82, 196, 232);
-        public static readonly Color Gold = Color.FromArgb(240, 190, 92);
-        public static readonly Color Red = Color.FromArgb(244, 112, 112);
-        public static readonly Color Purple = Color.FromArgb(168, 139, 250);
+        public static readonly Color Bg = Color.FromArgb(20, 18, 24);
+        public static readonly Color Bg2 = Color.FromArgb(29, 27, 32);
+        public static readonly Color Sidebar = Color.FromArgb(29, 27, 32);
+        public static readonly Color Panel = Color.FromArgb(33, 31, 38);
+        public static readonly Color Card = Color.FromArgb(33, 31, 38);
+        public static readonly Color CardHover = Color.FromArgb(43, 41, 48);
+        public static readonly Color CardActive = Color.FromArgb(54, 52, 59);
+        public static readonly Color Border = Color.FromArgb(73, 69, 79);
+        public static readonly Color BorderSoft = Color.FromArgb(51, 45, 65);
+        public static readonly Color Text = Color.FromArgb(230, 225, 229);
+        public static readonly Color TextSoft = Color.FromArgb(202, 196, 208);
+        public static readonly Color Muted = Color.FromArgb(147, 143, 153);
+        public static readonly Color Faint = Color.FromArgb(121, 116, 126);
+        public static readonly Color Accent = Color.FromArgb(208, 188, 255);
+        public static readonly Color AccentDark = Color.FromArgb(79, 55, 139);
+        public static readonly Color AccentDeep = Color.FromArgb(56, 30, 114);
+        public static readonly Color OnAccent = Color.FromArgb(56, 30, 114);
+        public static readonly Color PrimaryContainer = Color.FromArgb(79, 55, 139);
+        public static readonly Color OnPrimaryContainer = Color.FromArgb(234, 221, 255);
+        public static readonly Color Secondary = Color.FromArgb(204, 194, 220);
+        public static readonly Color SecondaryContainer = Color.FromArgb(74, 68, 88);
+        public static readonly Color OnSecondaryContainer = Color.FromArgb(232, 222, 248);
+        public static readonly Color SurfaceContainerHigh = Color.FromArgb(43, 41, 48);
+        public static readonly Color SurfaceContainerHighest = Color.FromArgb(54, 52, 59);
+        public static readonly Color Outline = Color.FromArgb(147, 143, 153);
+        public static readonly Color OutlineVariant = Color.FromArgb(73, 69, 79);
+        public static readonly Color Cyan = Color.FromArgb(156, 202, 255);
+        public static readonly Color Gold = Color.FromArgb(239, 184, 200);
+        public static readonly Color Red = Color.FromArgb(255, 180, 171);
+        public static readonly Color Purple = Color.FromArgb(208, 188, 255);
 
         private static PrivateFontCollection _embeddedFonts;
         private static IntPtr _embeddedFontMemory = IntPtr.Zero;

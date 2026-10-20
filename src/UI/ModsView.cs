@@ -338,8 +338,8 @@ namespace CubeLauncher.UI
             g.SmoothingMode = SmoothingMode.AntiAlias;
             InstalledVersion version = _main.SelectedVersion;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillRound(g, rect, 10, Theme.Card);
-            Ui.StrokeRound(g, rect, 10, Theme.BorderSoft, 1f);
+            Ui.FillRound(g, rect, 22, Theme.SurfaceContainerHigh);
+            Ui.StrokeRound(g, rect, 22, Theme.OutlineVariant, 1f);
             Ui.DrawIcon(g, IconKind.Box, new Rectangle(13, (Height - 17) / 2, 17, 17), Theme.Accent, 1.6f);
             if (version == null)
             {
@@ -429,14 +429,14 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillRound(g, rect, 13, _hover ? Theme.CardHover : Theme.Card);
-            Ui.StrokeRound(g, rect, 13, _hover ? Theme.Border : Theme.BorderSoft, 1f);
+            Ui.FillRound(g, rect, 24, _hover ? Theme.CardHover : Theme.SurfaceContainerHigh);
+            Ui.StrokeRound(g, rect, 24, _hover ? Theme.Accent : Theme.OutlineVariant, 1f);
 
             Rectangle iconRect = new Rectangle(16, 16, 58, 58);
-            Ui.FillRound(g, iconRect, 12, Theme.Alpha(Theme.Accent, 14));
+            Ui.FillRound(g, iconRect, 16, Theme.Alpha(Theme.Accent, 18));
             if (_icon != null)
             {
-                using (GraphicsPath path = Ui.RoundRect(iconRect, 12))
+                using (GraphicsPath path = Ui.RoundRect(iconRect, 16))
                 {
                     GraphicsState state = g.Save();
                     g.SetClip(path);
@@ -504,8 +504,8 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillRound(g, rect, 13, Theme.Card);
-            Ui.StrokeRound(g, rect, 13, Theme.BorderSoft, 1f);
+            Ui.FillRound(g, rect, 24, Theme.SurfaceContainerHigh);
+            Ui.StrokeRound(g, rect, 24, Theme.OutlineVariant, 1f);
             Ui.DrawSpinner(g, new Rectangle(18, Height / 2 - 10, 20, 20), Theme.Accent, _angle);
             Ui.Text(g, _text, Theme.Font(8.8f), Theme.TextSoft, new Rectangle(50, 0, Width - 70, Height), TextAlign.LeftMiddle);
         }

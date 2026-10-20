@@ -185,7 +185,7 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillLiquidGlass(g, rect, 18, _phase, Theme.Accent);
+            Ui.FillLiquidGlass(g, rect, 32, _phase, Theme.Accent);
 
             // Ambient light and pixel grid.
             using (SolidBrush glow = new SolidBrush(Theme.Alpha(Theme.Accent, 14)))
@@ -198,7 +198,7 @@ namespace CubeLauncher.UI
                 new Rectangle(40, 34, Width - 80, 20), TextAlign.LeftMiddle);
             Ui.Text(g, "方块世界，", Theme.Display(28f, FontStyle.Bold), Theme.Text,
                 new Rectangle(38, 58, 520, 48), TextAlign.LeftTop);
-            Ui.Text(g, "随时出发。", Theme.Display(28f, FontStyle.Bold), Color.FromArgb(202, 244, 228),
+            Ui.Text(g, "随时出发。", Theme.Display(28f, FontStyle.Bold), Theme.Accent,
                 new Rectangle(38, 106, 520, 48), TextAlign.LeftTop);
             Ui.Text(g, "国内镜像加速 · 一键安装 Forge / Fabric · 正版与皮肤站登录",
                 Theme.Font(9f), Theme.TextSoft, new Rectangle(40, 160, Math.Max(300, Width - 520), 24), TextAlign.LeftMiddle);
@@ -210,11 +210,11 @@ namespace CubeLauncher.UI
                 Size size = TextRenderer.MeasureText(chip, font);
                 int chipWidth = Math.Min(Width - 480, size.Width + 46);
                 Rectangle chipRect = new Rectangle(40, 190, Math.Max(150, chipWidth), 30);
-                Ui.FillRound(g, chipRect, 15, Theme.Alpha(Theme.Bg, 150));
-                Ui.StrokeRound(g, chipRect, 15, Theme.Alpha(Theme.Accent, 60), 1f);
+                Ui.FillRound(g, chipRect, 15, Theme.SecondaryContainer);
+                Ui.StrokeRound(g, chipRect, 15, Color.Transparent, 1f);
                 using (SolidBrush dot = new SolidBrush(_version == null ? Theme.Gold : Theme.Accent))
                     g.FillEllipse(dot, chipRect.X + 13, chipRect.Y + 12, 6, 6);
-                Ui.Text(g, chip, font, Theme.TextSoft, new Rectangle(chipRect.X + 26, chipRect.Y, chipRect.Width - 34, chipRect.Height), TextAlign.LeftMiddle);
+                Ui.Text(g, chip, font, Theme.OnSecondaryContainer, new Rectangle(chipRect.X + 26, chipRect.Y, chipRect.Width - 34, chipRect.Height), TextAlign.LeftMiddle);
             }
 
             DrawIllustration(g, rect);
@@ -345,7 +345,7 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillLiquidGlass(g, rect, 13, 0f, _accent);
+            Ui.FillLiquidGlass(g, rect, 24, 0f, _accent);
             using (SolidBrush glow = new SolidBrush(Theme.Alpha(_accent, 13)))
                 g.FillEllipse(glow, Width - 100, -46, 150, 150);
             Rectangle iconRect = new Rectangle(16, 16, 34, 34);
@@ -392,7 +392,7 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillLiquidGlass(g, rect, 14, 0f, Theme.Cyan);
+            Ui.FillLiquidGlass(g, rect, 24, 0f, Theme.Cyan);
             Ui.Text(g, "最近游玩", Theme.Font(10.5f, FontStyle.Bold), Theme.Text, new Rectangle(18, 12, 160, 26), TextAlign.LeftMiddle);
             Ui.Text(g, "点击快速启动", Theme.Font(7.8f), Theme.Muted, new Rectangle(Width - 130, 14, 112, 22), TextAlign.RightMiddle);
 
@@ -455,7 +455,7 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillLiquidGlass(g, rect, 14, 0f, Theme.Purple);
+            Ui.FillLiquidGlass(g, rect, 24, 0f, Theme.Purple);
             Ui.Text(g, "启动器状态", Theme.Font(10.5f, FontStyle.Bold), Theme.Text, new Rectangle(18, 12, 180, 26), TextAlign.LeftMiddle);
             Ui.DrawIcon(g, IconKind.Settings, new Rectangle(Width - 34, 18, 15, 15), Theme.Faint, 1.5f);
 

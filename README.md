@@ -35,7 +35,7 @@
 - **自动 Java**：检测系统 Java；缺失时从清华 TUNA 的 Adoptium 目录下载 Temurin JDK，自动解压到启动器目录。
 - **启动**：解析版本继承、规则、参数占位符、natives 解压、资源对象、日志配置、authlib-injector，支持 Forge 的模块路径参数。
 - **前置修复**：Forge 使用基础版本名替换 `${version_name}`，确保 `-DignoreList` 包含 `1.20.1.jar`，避免模块重复导出崩溃；Fabric/Quilt 检测到模组但缺少 Fabric API 时，启动前自动安装兼容版本。
-- **界面**：无边框深色窗口、自绘图标、渐变卡片、动画主页插画、自定义滚动条、自绘下拉框、进度对话框和日志窗口。
+- **界面**：Material 3 Expressive 风格深色主题；大圆角卡片、胶囊按钮/导航、紫色主色与粉/蓝点缀，保留液态玻璃高光与动画。
 - **液态玻璃与动效**：半透明玻璃卡片、缓慢流动的高光/焦散、侧栏流光、窗口淡入、页面切换幕布、按钮悬停缓动、Toast 淡入淡出。
 - **字体**：上首标题宋体已作为资源编译进 `CubeLauncher.exe`，运行时无需安装字体，也不需要额外的字体文件；源码中的 `assets/fonts/ShangShouBiaoTiSong.ttf` 仅用于构建。
 

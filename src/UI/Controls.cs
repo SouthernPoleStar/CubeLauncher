@@ -29,7 +29,7 @@ namespace CubeLauncher.UI
                      ControlStyles.ResizeRedraw | ControlStyles.UserPaint | ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
             Font = Theme.Font(9.5f, FontStyle.Bold);
-            ForeColor = Color.FromArgb(8, 24, 19);
+            ForeColor = Theme.OnAccent;
             Cursor = Cursors.Hand;
             Height = 42;
             _style = ButtonStyle.Accent;
@@ -87,36 +87,33 @@ namespace CubeLauncher.UI
             switch (_style)
             {
                 case ButtonStyle.Ghost:
-                    from = Theme.Alpha(Theme.Text, (int)(18 * h));
+                    from = Theme.Alpha(Theme.Accent, (int)(12 * h));
                     to = from;
-                    textColor = Theme.Text;
-                    border = Color.FromArgb((int)(Theme.Border.A * (1 - h) + 100 * h),
-                        (int)(Theme.Border.R * (1 - h) + Theme.Accent.R * h),
-                        (int)(Theme.Border.G * (1 - h) + Theme.Accent.G * h),
-                        (int)(Theme.Border.B * (1 - h) + Theme.Accent.B * h));
+                    textColor = Theme.Accent;
+                    border = Theme.OutlineVariant;
                     break;
                 case ButtonStyle.Dark:
-                    from = Theme.Mix(Theme.Card, Theme.CardHover, h);
+                    from = Theme.Mix(Theme.SurfaceContainerHigh, Theme.SurfaceContainerHighest, h);
                     to = from;
                     textColor = Theme.Text;
-                    border = Theme.Border;
+                    border = Theme.OutlineVariant;
                     break;
                 case ButtonStyle.Danger:
                     from = Theme.Mix(Theme.Red, Theme.Mix(Theme.Red, Color.White, 0.12f), h);
                     to = Theme.Mix(from, Color.Black, 0.18f);
-                    textColor = Color.White;
+                    textColor = Theme.Bg;
                     border = Color.Transparent;
                     break;
                 case ButtonStyle.Subtle:
-                    from = Theme.Alpha(Theme.Accent, (int)(10 + 13 * h));
+                    from = Theme.Mix(Theme.Alpha(Theme.SecondaryContainer, 190), Theme.SecondaryContainer, h);
                     to = from;
-                    textColor = Theme.Accent;
-                    border = Theme.Alpha(Theme.Accent, 55);
+                    textColor = Theme.OnSecondaryContainer;
+                    border = Color.Transparent;
                     break;
                 default:
                     from = Theme.Mix(Theme.Accent, Theme.Mix(Theme.Accent, Color.White, 0.12f), h);
                     to = Theme.Mix(Theme.Mix(Theme.Accent, Color.Black, 0.16f), Theme.Mix(Theme.Accent, Color.White, 0.02f), h);
-                    textColor = Color.FromArgb(7, 25, 19);
+                    textColor = Theme.OnAccent;
                     border = Color.Transparent;
                     break;
             }
@@ -135,12 +132,12 @@ namespace CubeLauncher.UI
                 if (_style == ButtonStyle.Ghost && from.A == 0) { }
                 else
                 {
-                    using (GraphicsPath path = Ui.RoundRect(rect, 10))
+                    using (GraphicsPath path = Ui.RoundRect(rect, 21))
                     using (LinearGradientBrush brush = new LinearGradientBrush(rect, from, to, 90f))
                         g.FillPath(brush, path);
                 }
             }
-            if (border.A > 0) Ui.StrokeRound(g, rect, 10, border, 1f);
+            if (border.A > 0) Ui.StrokeRound(g, rect, 21, border, 1f);
 
             if (_loading)
             {
@@ -230,21 +227,16 @@ namespace CubeLauncher.UI
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
             if (_selected)
             {
-                Ui.FillRoundGradient(g, rect, 10, Theme.Alpha(Theme.Accent, 18), Theme.Alpha(Theme.Accent, 4), 0f);
-                using (Pen pen = new Pen(Theme.Alpha(Theme.Accent, 55), 1f))
-                using (GraphicsPath path = Ui.RoundRect(rect, 10))
-                    g.DrawPath(pen, path);
-                using (SolidBrush brush = new SolidBrush(Theme.Accent))
-                    g.FillRectangle(brush, 0, 12, 3, Height - 24);
+                Ui.FillRound(g, rect, 22, Theme.SecondaryContainer);
             }
             else if (_hover)
             {
-                Ui.FillRound(g, rect, 10, Theme.Alpha(Theme.Text, 10));
+                Ui.FillRound(g, rect, 22, Theme.Alpha(Theme.Text, 8));
             }
-            Color color = _selected ? Theme.Accent : (_hover ? Theme.Text : Theme.Muted);
+            Color color = _selected ? Theme.OnSecondaryContainer : (_hover ? Theme.Text : Theme.Muted);
             Ui.DrawIcon(g, Icon, new Rectangle(14, (Height - 19) / 2, 19, 19), color, 1.65f);
             Ui.Text(g, Text, _selected ? Theme.Font(10f, FontStyle.Bold) : Font,
-                _selected ? Theme.Text : (_hover ? Theme.TextSoft : Theme.Muted),
+                _selected ? Theme.OnSecondaryContainer : (_hover ? Theme.TextSoft : Theme.Muted),
                 new Rectangle(45, 0, Width - 60, Height), TextAlign.LeftMiddle);
             if (!string.IsNullOrEmpty(Badge))
             {
@@ -336,8 +328,9 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillRound(g, rect, 10, _focused ? Theme.CardHover : Theme.Card);
-            Ui.StrokeRound(g, rect, 10, _focused ? Theme.Alpha(Theme.Accent, 140) : Theme.BorderSoft, 1f);
+            int radius = Math.Max(10, (Height - 1) / 2);
+            Ui.FillRound(g, rect, radius, _focused ? Theme.SurfaceContainerHighest : Theme.SurfaceContainerHigh);
+            Ui.StrokeRound(g, rect, radius, _focused ? Theme.Accent : Theme.OutlineVariant, 1f);
             Ui.DrawIcon(g, IconKind.Search, new Rectangle(14, (Height - 17) / 2, 17, 17), _focused ? Theme.Accent : Theme.Muted, 1.6f);
         }
     }
@@ -359,7 +352,7 @@ namespace CubeLauncher.UI
             Height = 67;
             _input = new TextBox();
             _input.BorderStyle = BorderStyle.None;
-            _input.BackColor = Theme.Card;
+            _input.BackColor = Theme.SurfaceContainerHigh;
             _input.ForeColor = Theme.Text;
             _input.Font = Theme.Font(10f);
             _input.GotFocus += delegate { _focused = true; Invalidate(); };
@@ -394,8 +387,8 @@ namespace CubeLauncher.UI
             if (!string.IsNullOrEmpty(Caption))
                 Ui.Text(g, Caption, Theme.Font(8.8f, FontStyle.Bold), Theme.Muted, new Rectangle(0, 2, Width, 20), TextAlign.LeftMiddle);
             Rectangle rect = new Rectangle(0, 24, Width - 1, Height - 25);
-            Ui.FillRound(g, rect, 9, Theme.Card);
-            Ui.StrokeRound(g, rect, 9, _focused ? Theme.Alpha(Theme.Accent, 150) : Theme.BorderSoft, 1f);
+            Ui.FillRound(g, rect, 16, Theme.SurfaceContainerHigh);
+            Ui.StrokeRound(g, rect, 16, _focused ? Theme.Accent : Theme.OutlineVariant, 1f);
         }
     }
 
@@ -499,8 +492,8 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillRound(g, rect, 9, _hover ? Theme.CardHover : Theme.Card);
-            Ui.StrokeRound(g, rect, 9, _open ? Theme.Alpha(Theme.Accent, 150) : Theme.BorderSoft, 1f);
+            Ui.FillRound(g, rect, 16, _hover ? Theme.SurfaceContainerHighest : Theme.SurfaceContainerHigh);
+            Ui.StrokeRound(g, rect, 16, _open ? Theme.Accent : Theme.OutlineVariant, 1f);
             Color color = Enabled ? Theme.Text : Theme.Faint;
             Ui.Text(g, SelectedText, Font, color, new Rectangle(14, 0, Width - 48, Height), TextAlign.LeftMiddle);
             Ui.DrawIcon(g, IconKind.ChevronDown, new Rectangle(Width - 29, (Height - 14) / 2, 14, 14), Theme.Muted, 1.6f);
@@ -595,16 +588,17 @@ namespace CubeLauncher.UI
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            Ui.FillRound(g, rect, 9, Theme.Card);
-            Ui.StrokeRound(g, rect, 9, Theme.BorderSoft, 1f);
+            int radius = Math.Max(10, (Height - 1) / 2);
+            Ui.FillRound(g, rect, radius, Theme.SurfaceContainerHigh);
+            Ui.StrokeRound(g, rect, radius, Theme.OutlineVariant, 1f);
             if (_options.Length == 0) return;
             int itemWidth = (Width - 8) / _options.Length;
             for (int i = 0; i < _options.Length; i++)
             {
                 Rectangle item = new Rectangle(4 + i * itemWidth, 4, itemWidth, Height - 8);
                 if (i == _selected)
-                    Ui.FillRound(g, item, 7, Theme.Alpha(Theme.Accent, 28));
-                Ui.Text(g, _options[i], Font, i == _selected ? Theme.Accent : Theme.Muted, item, TextAlign.CenterMiddle);
+                    Ui.FillRound(g, item, Math.Max(8, item.Height / 2), Theme.SecondaryContainer);
+                Ui.Text(g, _options[i], Font, i == _selected ? Theme.OnSecondaryContainer : Theme.Muted, item, TextAlign.CenterMiddle);
             }
         }
     }
