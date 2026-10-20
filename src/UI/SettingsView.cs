@@ -25,7 +25,6 @@ namespace CubeLauncher.UI
         private readonly ToggleSwitch _snapshots;
         private readonly ToggleSwitch _mirror;
         private readonly DarkComboBox _threads;
-        private readonly LabeledInput _curseKey;
         private readonly SettingsGroup _gameGroup;
         private readonly SettingsGroup _javaGroup;
         private readonly SettingsGroup _perfGroup;
@@ -149,8 +148,8 @@ namespace CubeLauncher.UI
             AddCaption(_perfGroup, "在版本库显示快照", 348, 192);
             AddCaption(_perfGroup, "内存分配", 20, 58);
 
-            _downloadGroup = new SettingsGroup("下载与镜像", "国内源优先，失败时回退官方；CurseForge 可填写 API Key");
-            _downloadGroup.Height = 286;
+            _downloadGroup = new SettingsGroup("下载与镜像", "国内源优先，失败时回退官方");
+            _downloadGroup.Height = 220;
             _scroll.AddControl(_downloadGroup);
 
             _mirror = new ToggleSwitch();
@@ -161,11 +160,6 @@ namespace CubeLauncher.UI
             _threads = new DarkComboBox();
             _threads.SetItems(new object[] { "4 线程", "6 线程", "8 线程", "12 线程", "16 线程" });
             _downloadGroup.Controls.Add(_threads);
-
-            _curseKey = new LabeledInput();
-            _curseKey.Caption = "CurseForge API Key（可选，镜像不可用时使用官方 API）";
-            _curseKey.Placeholder = "在 CurseForge 开发者控制台申请";
-            _downloadGroup.Controls.Add(_curseKey);
 
             _aboutGroup = new SettingsGroup("关于与诊断", "方块启动器 " + App.Version + " · .NET Framework 4.0");
             _aboutGroup.Height = 160;
@@ -232,7 +226,6 @@ namespace CubeLauncher.UI
             _mirror.Location = new Point(20, 68);
             _threads.Location = new Point(20, 146);
             _threads.Width = 150;
-            _curseKey.SetBounds(20, 198, width - 40, 62);
 
             openButtonsLayout(width);
         }
@@ -281,7 +274,6 @@ namespace CubeLauncher.UI
             else if (Main.Config.DownloadThreads <= 12) threadIndex = 3;
             else threadIndex = 4;
             _threads.SelectedIndex = threadIndex;
-            _curseKey.Value = Main.Config.CurseForgeApiKey;
             RefreshView();
         }
 
@@ -300,7 +292,6 @@ namespace CubeLauncher.UI
                 Main.Config.MirrorFirst = _mirror.Checked;
                 int[] threads = new int[] { 4, 6, 8, 12, 16 };
                 Main.Config.DownloadThreads = threads[Math.Max(0, Math.Min(threads.Length - 1, _threads.SelectedIndex))];
-                Main.Config.CurseForgeApiKey = _curseKey.Value.Trim();
                 Util.EnsureDirectory(Main.Config.GameDir);
                 Util.EnsureDirectory(Main.Config.VersionsDir);
                 Util.EnsureDirectory(Main.Config.LibrariesDir);

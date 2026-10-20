@@ -691,7 +691,7 @@ namespace CubeLauncher.UI
             private int _page;
 
             private readonly string[] _titles = new string[] { "首页", "版本库", "模组中心", "账户中心", "设置" };
-            private readonly string[] _subtitles = new string[] { "为下一次冒险做好准备", "管理你的游戏版本与模组加载器", "从 CurseForge 与 Modrinth 发现模组", "正版、皮肤站与离线账户", "调整启动器的每一个细节" };
+            private readonly string[] _subtitles = new string[] { "为下一次冒险做好准备", "管理你的游戏版本与模组加载器", "从 Modrinth 发现模组", "正版、皮肤站与离线账户", "调整启动器的每一个细节" };
 
             public TopBar(MainForm main)
             {

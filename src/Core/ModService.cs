@@ -21,7 +21,7 @@ namespace CubeLauncher.Core
 
         public string SourceLabel
         {
-            get { return string.Equals(Source, "curseforge", StringComparison.OrdinalIgnoreCase) ? "CurseForge" : "Modrinth"; }
+            get { return "Modrinth"; }
         }
 
         public string DownloadLabel
@@ -39,8 +39,6 @@ namespace CubeLauncher.Core
     {
         public string ProjectId = "";
         public string VersionId = "";
-        public long ModId;
-        public long FileId;
         public string Type = "";
         public string Name = "";
     }
@@ -81,29 +79,11 @@ namespace CubeLauncher.Core
         public List<ModProject> Projects = new List<ModProject>();
         public int Total;
         public int Offset;
-        public string Source = "";
+        public string Source = "modrinth";
     }
 
     public static class ModService
     {
-        private sealed class CfWidgetCacheEntry
-        {
-            public string Json;
-            public DateTime At;
-        }
-
-        private static readonly Dictionary<string, CfWidgetCacheEntry> CfWidgetCache = new Dictionary<string, CfWidgetCacheEntry>();
-        private static readonly object CfWidgetLock = new object();
-
-        public static int CurseLoaderType(string loader)
-        {
-            if (string.Equals(loader, "forge", StringComparison.OrdinalIgnoreCase)) return 1;
-            if (string.Equals(loader, "fabric", StringComparison.OrdinalIgnoreCase)) return 4;
-            if (string.Equals(loader, "quilt", StringComparison.OrdinalIgnoreCase)) return 5;
-            if (string.Equals(loader, "neoforge", StringComparison.OrdinalIgnoreCase)) return 6;
-            return 0;
-        }
-
         public static string ModrinthLoader(string loader)
         {
             if (string.Equals(loader, "vanilla", StringComparison.OrdinalIgnoreCase)) return "";
@@ -112,8 +92,6 @@ namespace CubeLauncher.Core
 
         public static ModSearchResult Search(AppConfig config, string source, string query, string mc, string loader, int offset, int limit)
         {
-            if (string.Equals(source, "curseforge", StringComparison.OrdinalIgnoreCase))
-                return SearchCurse(config, query, mc, loader, offset, limit);
             return SearchModrinth(config, query, mc, loader, offset, limit);
         }
 
@@ -152,271 +130,10 @@ namespace CubeLauncher.Core
             return result;
         }
 
-        private static ModSearchResult SearchCurse(AppConfig config, string query, string mc, string loader, int offset, int limit)
-        {
-            int loaderType = CurseLoaderType(loader);
-            try
-            {
-                string json = GetCurseJson(config, Mirror.CurseSearch(query, mc, loaderType, offset, limit));
-                JMap root = JMap.Parse(json);
-                ModSearchResult result = new ModSearchResult();
-                result.Source = "curseforge";
-                result.Offset = offset;
-                result.Total = root.Map("pagination").Int("totalCount", 0);
-                List<JMap> hits = root.Maps("data");
-                for (int i = 0; i < hits.Count; i++)
-                {
-                    JMap hit = hits[i];
-                    ModProject project = new ModProject();
-                    project.Source = "curseforge";
-                    project.Id = hit.Str("id", "");
-                    project.Slug = hit.Str("slug", "");
-                    project.Name = hit.Str("name", "");
-                    project.Summary = Clean(hit.Str("summary", ""));
-                    JMap logo = hit.Map("logo");
-                    project.IconUrl = logo.Str("thumbnailUrl", logo.Str("url", ""));
-                    project.Downloads = hit.Long("downloadCount", 0);
-                    List<JMap> authors = hit.Maps("authors");
-                    if (authors.Count > 0) project.Author = authors[0].Str("name", "");
-                    project.Categories = JoinMaps(hit.Maps("categories"), "name");
-                    project.Website = "https://www.curseforge.com/minecraft/mc-mods/" + project.Slug;
-                    if (!string.IsNullOrEmpty(project.Id)) result.Projects.Add(project);
-                }
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("CurseForge 镜像/API 请求失败，尝试 CFWidget 项目回退: " + ex.Message);
-                ModSearchResult fallback = SearchCfWidget(config, query, mc, loader);
-                if (fallback != null) return fallback;
-                throw new Exception("CurseForge 国内镜像暂不可用。" +
-                    (string.IsNullOrEmpty(config.CurseForgeApiKey)
-                        ? "可在「设置 → 下载与镜像」填写 CurseForge API Key，或直接输入模组的 CurseForge slug（例如 jei、sodium）。"
-                        : "请稍后重试。"));
-            }
-        }
-
-        private static string GetCurseJson(AppConfig config, List<string> urls)
-        {
-            if (urls == null || urls.Count == 0) throw new Exception("CurseForge 地址为空");
-            try
-            {
-                return Http.GetText(new List<string>() { urls[0] }, 20000);
-            }
-            catch (Exception mirrorError)
-            {
-                if (string.IsNullOrEmpty(config.CurseForgeApiKey))
-                    throw new Exception("CurseForge 镜像不可用: " + mirrorError.Message, mirrorError);
-                Dictionary<string, string> headers = new Dictionary<string, string>();
-                headers["x-api-key"] = config.CurseForgeApiKey;
-                headers["Accept"] = "application/json";
-                return Http.GetText(new List<string>() { urls[urls.Count - 1] }, 30000, headers);
-            }
-        }
-
         public static List<ModFile> LoadFiles(AppConfig config, ModProject project, string mc, string loader)
         {
             if (project == null) return new List<ModFile>();
-            if (string.Equals(project.Source, "curseforge", StringComparison.OrdinalIgnoreCase))
-                return LoadCurseFiles(config, project, mc, loader);
             return LoadModrinthFiles(config, project, mc, loader);
-        }
-
-        private static ModSearchResult SearchCfWidget(AppConfig config, string query, string mc, string loader)
-        {
-            string slug = ExtractSlug(query);
-            if (string.IsNullOrEmpty(slug)) return null;
-            try
-            {
-                JMap project = FetchCfWidget(config, slug, mc, loader);
-                if (project.Count == 0) return null;
-                ModSearchResult result = new ModSearchResult();
-                result.Source = "curseforge";
-                result.Total = 1;
-                ModProject item = ParseCfWidgetProject(project, slug);
-                if (string.IsNullOrEmpty(item.Id)) return null;
-                result.Projects.Add(item);
-                Log.Info("CurseForge 使用 CFWidget 回退: " + item.Name);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("CFWidget 回退失败: " + ex.Message);
-                return null;
-            }
-        }
-
-        private static ModProject ParseCfWidgetProject(JMap json, string slug)
-        {
-            ModProject project = new ModProject();
-            project.Source = "curseforge";
-            project.Id = json.Str("id", "");
-            project.Slug = slug;
-            project.Name = json.Str("title", slug);
-            project.Summary = Clean(json.Str("summary", ""));
-            project.IconUrl = json.Str("thumbnail", "");
-            project.Downloads = json.Long("downloads", 0);
-            List<JMap> members = json.Maps("members");
-            if (members.Count > 0) project.Author = members[0].Str("username", members[0].Str("name", ""));
-            project.Website = "https://www.curseforge.com/minecraft/mc-mods/" + slug;
-            return project;
-        }
-
-        private static JMap FetchCfWidget(AppConfig config, string slug, string mc, string loader)
-        {
-            string key = slug + "|" + (mc ?? "") + "|" + (loader ?? "");
-            lock (CfWidgetLock)
-            {
-                CfWidgetCacheEntry cached;
-                if (CfWidgetCache.TryGetValue(key, out cached) &&
-                    (DateTime.UtcNow - cached.At).TotalMinutes < 10)
-                {
-                    try { return JMap.Parse(cached.Json); }
-                    catch { CfWidgetCache.Remove(key); }
-                }
-            }
-
-            string url = "https://api.cfwidget.com/minecraft/mc-mods/" + Uri.EscapeDataString(slug);
-            if (!string.IsNullOrEmpty(mc) || !string.IsNullOrEmpty(loader))
-            {
-                url += "?";
-                if (!string.IsNullOrEmpty(mc)) url += "version=" + Uri.EscapeDataString(mc);
-                if (!string.IsNullOrEmpty(loader)) url += (url.EndsWith("?") ? "" : "&") + "loader=" + Uri.EscapeDataString(loader);
-            }
-            string json = Http.GetText(new List<string>() { url }, 45000);
-            lock (CfWidgetLock)
-            {
-                CfWidgetCacheEntry entry = new CfWidgetCacheEntry();
-                entry.Json = json;
-                entry.At = DateTime.UtcNow;
-                CfWidgetCache[key] = entry;
-            }
-            return JMap.Parse(json);
-        }
-
-        private static string ExtractSlug(string query)
-        {
-            if (string.IsNullOrEmpty(query)) return "";
-            string value = query.Trim();
-            int marker = value.IndexOf("/minecraft/mc-mods/", StringComparison.OrdinalIgnoreCase);
-            if (marker >= 0) value = value.Substring(marker + "/minecraft/mc-mods/".Length);
-            else
-            {
-                marker = value.IndexOf("curseforge.com/minecraft/", StringComparison.OrdinalIgnoreCase);
-                if (marker >= 0)
-                {
-                    value = value.Substring(marker + "curseforge.com/minecraft/".Length);
-                    int slash = value.IndexOf('/');
-                    if (slash >= 0) value = value.Substring(slash + 1);
-                }
-            }
-            int cut = value.IndexOfAny(new char[] { '?', '#', '/' });
-            if (cut >= 0) value = value.Substring(0, cut);
-            value = value.Trim().ToLowerInvariant();
-            if (value.IndexOf(' ') >= 0) value = value.Replace(' ', '-');
-            StringBuilder builder = new StringBuilder();
-            for (int i = 0; i < value.Length; i++)
-            {
-                char c = value[i];
-                if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') builder.Append(c);
-            }
-            value = builder.ToString().Trim('-');
-            return value.Length >= 2 ? value : "";
-        }
-
-        private static List<ModFile> LoadCfWidgetFiles(AppConfig config, ModProject project, string mc, string loader)
-        {
-            List<ModFile> result = new List<ModFile>();
-            if (project == null || string.IsNullOrEmpty(project.Slug)) return result;
-            JMap json = FetchCfWidget(config, project.Slug, mc, loader);
-
-            List<JMap> candidates = new List<JMap>();
-            JMap download = json.Map("download");
-            if (IsCfWidgetCompatible(download, mc, loader)) candidates.Add(download);
-            List<JMap> files = json.Maps("files");
-            for (int i = 0; i < files.Count; i++)
-            {
-                if (IsCfWidgetCompatible(files[i], mc, loader)) candidates.Add(files[i]);
-            }
-
-            if (candidates.Count == 0)
-                throw new Exception("CFWidget 未找到适配 " + mc + " / " + loader + " 的文件");
-
-            candidates.Sort(delegate(JMap a, JMap b)
-            {
-                int byDate = string.CompareOrdinal(b.Str("uploaded_at", ""), a.Str("uploaded_at", ""));
-                if (byDate != 0) return byDate;
-                return b.Long("id", 0).CompareTo(a.Long("id", 0));
-            });
-
-            HashSet<string> seen = new HashSet<string>();
-            for (int i = 0; i < candidates.Count && result.Count < 50; i++)
-            {
-                ModFile file = CfWidgetFile(candidates[i], project.Id);
-                if (file == null || string.IsNullOrEmpty(file.DownloadUrl)) continue;
-                if (!seen.Add(file.Id)) continue;
-                result.Add(file);
-            }
-            return result;
-        }
-
-        private static bool IsCfWidgetCompatible(JMap file, string mc, string loader)
-        {
-            if (file == null || file.Count == 0) return false;
-            string id = file.Str("id", "");
-            string name = file.Str("name", "");
-            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(name)) return false;
-            List<object> versions = new List<object>();
-            IList<object> raw = file.List("versions");
-            if (raw != null) for (int i = 0; i < raw.Count; i++) versions.Add(raw[i]);
-
-            bool hasMc = string.IsNullOrEmpty(mc);
-            bool hasLoader = string.IsNullOrEmpty(loader);
-            string loaderName = CfWidgetLoaderName(loader);
-            for (int i = 0; i < versions.Count; i++)
-            {
-                string token = Convert.ToString(versions[i]);
-                if (!string.IsNullOrEmpty(mc) && string.Equals(token, mc, StringComparison.OrdinalIgnoreCase)) hasMc = true;
-                if (!string.IsNullOrEmpty(loaderName) && string.Equals(token, loaderName, StringComparison.OrdinalIgnoreCase)) hasLoader = true;
-            }
-            return hasMc && hasLoader;
-        }
-
-        private static string CfWidgetLoaderName(string loader)
-        {
-            if (string.Equals(loader, "neoforge", StringComparison.OrdinalIgnoreCase)) return "NeoForge";
-            if (string.Equals(loader, "forge", StringComparison.OrdinalIgnoreCase)) return "Forge";
-            if (string.Equals(loader, "fabric", StringComparison.OrdinalIgnoreCase)) return "Fabric";
-            if (string.Equals(loader, "quilt", StringComparison.OrdinalIgnoreCase)) return "Quilt";
-            return "";
-        }
-
-        private static ModFile CfWidgetFile(JMap item, string modId)
-        {
-            string id = item.Str("id", "");
-            string fileName = item.Str("name", "");
-            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(fileName)) return null;
-            ModFile file = new ModFile();
-            file.Source = "curseforge";
-            file.Id = id;
-            file.ModId = modId;
-            file.Name = item.Str("display", fileName);
-            file.FileName = fileName;
-            file.VersionNumber = file.Name;
-            file.Size = item.Long("filesize", 0);
-            file.DownloadUrl = BuildCurseCdnUrl(file.Id, fileName);
-            file.ReleaseType = string.Equals(item.Str("type", "release"), "release", StringComparison.OrdinalIgnoreCase) ? "release" : "beta";
-            file.GameVersions = JoinList(item.List("versions"));
-            return file;
-        }
-
-        private static string BuildCurseCdnUrl(string fileId, string fileName)
-        {
-            long id;
-            if (!long.TryParse(fileId, out id) || string.IsNullOrEmpty(fileName)) return "";
-            long folder = id / 1000;
-            long leaf = id % 1000;
-            return "https://mediafilez.forgecdn.net/files/" + folder.ToString() + "/" + leaf.ToString("000") + "/" + Uri.EscapeDataString(fileName);
         }
 
         private static List<ModFile> LoadModrinthFiles(AppConfig config, ModProject project, string mc, string loader)
@@ -470,59 +187,6 @@ namespace CubeLauncher.Core
                 dependency.VersionId = dep.Str("version_id", "");
                 dependency.Type = dep.Str("dependency_type", "");
                 if (!string.IsNullOrEmpty(dependency.ProjectId)) file.Dependencies.Add(dependency);
-            }
-            return file;
-        }
-
-        private static List<ModFile> LoadCurseFiles(AppConfig config, ModProject project, string mc, string loader)
-        {
-            try
-            {
-                string json = GetCurseJson(config, Mirror.CurseFiles(project.Id, mc, CurseLoaderType(loader)));
-                JMap root = JMap.Parse(json);
-                List<JMap> items = root.Maps("data");
-                List<ModFile> result = new List<ModFile>();
-                for (int i = 0; i < items.Count; i++)
-                {
-                    ModFile file = ParseCurseFile(items[i], project.Id);
-                    if (!string.IsNullOrEmpty(file.DownloadUrl)) result.Add(file);
-                }
-                return result;
-            }
-            catch (Exception ex)
-            {
-                List<ModFile> fallback = LoadCfWidgetFiles(config, project, mc, loader);
-                if (fallback.Count > 0)
-                {
-                    Log.Warn("CurseForge 文件列表使用 CFWidget 回退: " + ex.Message);
-                    return fallback;
-                }
-                throw;
-            }
-        }
-
-        private static ModFile ParseCurseFile(JMap item, string modId)
-        {
-            ModFile file = new ModFile();
-            file.Source = "curseforge";
-            file.Id = item.Str("id", "");
-            file.ModId = string.IsNullOrEmpty(modId) ? item.Str("modId", "") : modId;
-            file.Name = item.Str("displayName", "");
-            file.FileName = item.Str("fileName", "");
-            file.VersionNumber = file.Name;
-            file.DownloadUrl = item.Str("downloadUrl", "");
-            file.Size = item.Long("fileLength", 0);
-            file.ReleaseType = item.Int("releaseType", 1) == 1 ? "release" : "beta";
-            file.GameVersions = JoinList(item.List("gameVersions"));
-            List<JMap> deps = item.Maps("dependencies");
-            for (int d = 0; d < deps.Count; d++)
-            {
-                JMap dep = deps[d];
-                ModDependency dependency = new ModDependency();
-                dependency.ModId = dep.Long("modId", 0);
-                dependency.FileId = dep.Long("fileId", 0);
-                dependency.Type = dep.Int("relationType", 0) == 3 ? "required" : "optional";
-                if (dependency.ModId > 0) file.Dependencies.Add(dependency);
             }
             return file;
         }
@@ -595,21 +259,6 @@ namespace CubeLauncher.Core
                     List<ModFile> files = LoadModrinthFiles(config, new ModProject { Id = dep.ProjectId, Source = "modrinth" }, mc, loader);
                     if (files.Count > 0) return files[0];
                 }
-                if (dep.ModId > 0)
-                {
-                    string json;
-                    if (dep.FileId > 0)
-                    {
-                        json = GetCurseJson(config, Mirror.CurseFile(dep.ModId.ToString(), dep.FileId.ToString()));
-                        JMap root = JMap.Parse(json);
-                        JMap data = root.Map("data");
-                        if (data.Count > 0) return ParseCurseFile(data, dep.ModId.ToString());
-                    }
-                    json = GetCurseJson(config, Mirror.CurseFiles(dep.ModId.ToString(), mc, CurseLoaderType(loader)));
-                    JMap listRoot = JMap.Parse(json);
-                    List<JMap> items = listRoot.Maps("data");
-                    if (items.Count > 0) return ParseCurseFile(items[0], dep.ModId.ToString());
-                }
             }
             catch (Exception ex)
             {
@@ -629,13 +278,6 @@ namespace CubeLauncher.Core
             if (list == null || list.Count == 0) return "";
             List<string> values = new List<string>();
             for (int i = 0; i < list.Count; i++) values.Add(Convert.ToString(list[i]));
-            return string.Join(", ", values.ToArray());
-        }
-
-        private static string JoinMaps(List<JMap> maps, string key)
-        {
-            List<string> values = new List<string>();
-            for (int i = 0; i < maps.Count; i++) values.Add(maps[i].Str(key, ""));
             return string.Join(", ", values.ToArray());
         }
     }

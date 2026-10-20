@@ -3,6 +3,8 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace CubeLauncher.UI
@@ -31,6 +33,7 @@ namespace CubeLauncher.UI
         public static readonly Color Purple = Color.FromArgb(168, 139, 250);
 
         private static PrivateFontCollection _embeddedFonts;
+        private static IntPtr _embeddedFontMemory = IntPtr.Zero;
         private static readonly FontFamily EmbeddedUiFamily = LoadEmbeddedUiFamily();
 
         public static readonly string UiFont = EmbeddedUiFamily != null ? EmbeddedUiFamily.Name : PickFont(new string[] { "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI" });
@@ -75,6 +78,38 @@ namespace CubeLauncher.UI
 
         private static FontFamily LoadEmbeddedUiFamily()
         {
+            try
+            {
+                // The font is embedded into the EXE by build.ps1. No external
+                // asset is required at runtime.
+                Assembly assembly = Assembly.GetExecutingAssembly();
+                using (Stream stream = assembly.GetManifestResourceStream("CubeLauncher.Resources.ShangShouBiaoTiSong.ttf"))
+                {
+                    if (stream != null)
+                    {
+                        byte[] bytes = new byte[stream.Length];
+                        int read = 0;
+                        while (read < bytes.Length)
+                        {
+                            int count = stream.Read(bytes, read, bytes.Length - read);
+                            if (count <= 0) break;
+                            read += count;
+                        }
+                        if (read > 0)
+                        {
+                            _embeddedFontMemory = Marshal.AllocHGlobal(read);
+                            Marshal.Copy(bytes, 0, _embeddedFontMemory, read);
+                            _embeddedFonts = new PrivateFontCollection();
+                            _embeddedFonts.AddMemoryFont(_embeddedFontMemory, read);
+                            if (_embeddedFonts.Families.Length > 0) return _embeddedFonts.Families[0];
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
+
             try
             {
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;

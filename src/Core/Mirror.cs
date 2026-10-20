@@ -69,11 +69,6 @@ namespace CubeLauncher.Core
                     return Mcim + "/modrinth" + path + query;
                 case "cdn.modrinth.com":
                     return Mcim + path + query;
-                case "api.curseforge.com":
-                    return Mcim + "/curseforge" + path + query;
-                case "edge.forgecdn.net":
-                case "mediafilez.forgecdn.net":
-                    return Mcim + path + query;
                 default:
                     return url;
             }
@@ -186,48 +181,8 @@ namespace CubeLauncher.Core
             return new List<string>() { Mcim + "/modrinth" + path, "https://api.modrinth.com" + path };
         }
 
-        public static List<string> CurseSearch(string query, string mc, int loaderType, int offset, int limit)
-        {
-            string path = "/v1/mods/search?gameId=432&classId=6&sortField=2&sortOrder=desc&pageSize=" + limit.ToString() +
-                          "&index=" + offset.ToString() + "&searchFilter=" + Uri.EscapeDataString(query ?? "");
-            if (!string.IsNullOrEmpty(mc)) path += "&gameVersion=" + Uri.EscapeDataString(mc);
-            if (loaderType > 0) path += "&modLoaderType=" + loaderType.ToString();
-            return new List<string>() { Mcim + "/curseforge" + path, "https://api.curseforge.com" + path };
-        }
-
-        public static List<string> CurseFiles(string modId, string mc, int loaderType)
-        {
-            string path = "/v1/mods/" + Uri.EscapeDataString(modId) + "/files?pageSize=50";
-            if (!string.IsNullOrEmpty(mc)) path += "&gameVersion=" + Uri.EscapeDataString(mc);
-            if (loaderType > 0) path += "&modLoaderType=" + loaderType.ToString();
-            return new List<string>() { Mcim + "/curseforge" + path, "https://api.curseforge.com" + path };
-        }
-
-        public static List<string> CurseFile(string modId, string fileId)
-        {
-            string path = "/v1/mods/" + Uri.EscapeDataString(modId) + "/files/" + Uri.EscapeDataString(fileId);
-            return new List<string>() { Mcim + "/curseforge" + path, "https://api.curseforge.com" + path };
-        }
-
-        public static List<string> CurseMod(string modId)
-        {
-            string path = "/v1/mods/" + Uri.EscapeDataString(modId);
-            return new List<string>() { Mcim + "/curseforge" + path, "https://api.curseforge.com" + path };
-        }
-
         public static List<string> ModFileUrls(string officialDownload, bool mirrorFirst)
         {
-            List<string> urls = new List<string>();
-            Uri uri;
-            if (!string.IsNullOrEmpty(officialDownload) && Uri.TryCreate(officialDownload, UriKind.Absolute, out uri) &&
-                (uri.Host.EndsWith("forgecdn.net", StringComparison.OrdinalIgnoreCase)))
-            {
-                string path = uri.AbsolutePath;
-                urls.Add("https://mediafilez.forgecdn.net" + path);
-                urls.Add("https://edge.forgecdn.net" + path);
-                urls.Add(Mcim + path);
-                return urls;
-            }
             return Urls(officialDownload, mirrorFirst);
         }
 

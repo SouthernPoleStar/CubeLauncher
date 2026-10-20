@@ -20,7 +20,6 @@ namespace CubeLauncher.Core
         public int DownloadThreads = 6;
         public string MicrosoftClientId = AuthService.DefaultMicrosoftClientId;
         public bool AutoDownloadJava = true;
-        public string CurseForgeApiKey = "";
         public List<Account> Accounts = new List<Account>();
 
         [ScriptIgnore]
@@ -114,7 +113,6 @@ namespace CubeLauncher.Core
             if (string.IsNullOrEmpty(config.MicrosoftClientId) ||
                 string.Equals(config.MicrosoftClientId, "00000000402b5328", StringComparison.OrdinalIgnoreCase))
                 config.MicrosoftClientId = AuthService.DefaultMicrosoftClientId;
-            if (config.CurseForgeApiKey == null) config.CurseForgeApiKey = "";
             if (config.Accounts.Count == 0)
             {
                 Account offline = Account.CreateOffline("Steve");

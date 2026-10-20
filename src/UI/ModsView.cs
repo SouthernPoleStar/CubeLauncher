@@ -10,7 +10,6 @@ namespace CubeLauncher.UI
     public sealed class ModsView : BaseView
     {
         private readonly SearchBox _search;
-        private readonly SegmentedControl _source;
         private readonly AccentButton _refresh;
         private readonly InstancePill _pill;
         private readonly SmoothScrollPanel _list;
@@ -25,21 +24,9 @@ namespace CubeLauncher.UI
         public ModsView(MainForm main) : base(main)
         {
             _search = new SearchBox();
-            _search.Placeholder = "搜索模组、光影、优化模组...";
+            _search.Placeholder = "搜索 Modrinth 模组、光影、优化模组...";
             _search.TextChangedCustom += delegate { _debounce.Stop(); _debounce.Start(); };
             Controls.Add(_search);
-
-            _source = new SegmentedControl();
-            _source.Options = new string[] { "Modrinth", "CurseForge" };
-            _source.SelectedIndex = 0;
-            _source.SelectedIndexChanged += delegate
-            {
-                _search.Placeholder = _source.SelectedIndex == 1
-                    ? "CurseForge 无 API Key：输入项目 slug 精确查询，如 jei"
-                    : "搜索模组、光影、优化模组...";
-                StartSearch();
-            };
-            Controls.Add(_source);
 
             _refresh = new AccentButton();
             _refresh.Text = "刷新";
@@ -95,8 +82,7 @@ namespace CubeLauncher.UI
         private void LayoutChildren()
         {
             int left = 28;
-            _search.SetBounds(left, 18, 330, 40);
-            _source.SetBounds(left + 346, 18, 224, 40);
+            _search.SetBounds(left, 18, Math.Max(320, ClientSize.Width - 300), 40);
             _refresh.SetBounds(ClientSize.Width - 132, 18, 96, 40);
             _pill.SetBounds(left, 72, ClientSize.Width - 56, 42);
             _list.SetBounds(left, 124, ClientSize.Width - 56, Math.Max(100, ClientSize.Height - 148));
@@ -113,21 +99,10 @@ namespace CubeLauncher.UI
             _list.Clear();
             ShowLoading();
             InstalledVersion version = Main.SelectedVersion;
-            string source = _source.SelectedIndex == 0 ? "modrinth" : "curseforge";
+            string source = "modrinth";
             string query = _search.Value.Trim();
             string mc = version == null ? "" : version.Minecraft;
             string loader = version == null ? "" : version.Loader;
-            if (source == "curseforge" && string.IsNullOrEmpty(query))
-            {
-                _loading = false;
-                _list.Clear();
-                EmptyState notice = new EmptyState(IconKind.Warning, "CurseForge 需要精确项目名",
-                    "无 API Key 时 CurseForge 没有关键词搜索接口，只能输入已知项目 slug，例如 jei、sodium、create。\n" +
-                    "这不是启动器能力上限；填写 API Key 后可恢复完整搜索。");
-                notice.Width = _list.Width - 4;
-                _list.AddControl(notice);
-                return;
-            }
             Ui.Run(this, delegate
             {
                 ModSearchResult result = ModService.Search(Main.Config, source, query, mc, loader, 0, 20);
@@ -161,7 +136,7 @@ namespace CubeLauncher.UI
             int token = _request;
             int offset = _projects.Count;
             InstalledVersion version = Main.SelectedVersion;
-            string source = _source.SelectedIndex == 0 ? "modrinth" : "curseforge";
+            string source = "modrinth";
             string query = _search.Value.Trim();
             string mc = version == null ? "" : version.Minecraft;
             string loader = version == null ? "" : version.Loader;
@@ -191,7 +166,7 @@ namespace CubeLauncher.UI
 
         private void ShowLoading()
         {
-            LoadingCard loading = new LoadingCard("正在从" + (_source.SelectedIndex == 0 ? " Modrinth " : " CurseForge ") + "获取模组...");
+            LoadingCard loading = new LoadingCard("正在从 Modrinth 获取模组...");
             loading.Width = _list.Width - 4;
             _list.AddControl(loading);
         }
@@ -414,7 +389,7 @@ namespace CubeLauncher.UI
             Ui.StrokeRound(g, rect, 13, _hover ? Theme.Border : Theme.BorderSoft, 1f);
 
             Rectangle iconRect = new Rectangle(16, 16, 58, 58);
-            Ui.FillRound(g, iconRect, 12, Theme.Alpha(Project.Source == "modrinth" ? Theme.Accent : Theme.Gold, 14));
+            Ui.FillRound(g, iconRect, 12, Theme.Alpha(Theme.Accent, 14));
             if (_icon != null)
             {
                 using (GraphicsPath path = Ui.RoundRect(iconRect, 12))
@@ -427,7 +402,7 @@ namespace CubeLauncher.UI
             }
             else
             {
-                Color fallback = Project.Source == "modrinth" ? Theme.Accent : Theme.Gold;
+                Color fallback = Theme.Accent;
                 for (int y = 0; y < 3; y++)
                 {
                     for (int x = 0; x < 3; x++)
@@ -451,8 +426,8 @@ namespace CubeLauncher.UI
             using (Font font = Theme.Font(7.6f, FontStyle.Bold))
             {
                 Rectangle sourceBadge = new Rectangle(16, Height - 34, 76, 22);
-                Ui.FillRound(g, sourceBadge, 11, Theme.Alpha(Project.Source == "modrinth" ? Theme.Accent : Theme.Gold, 18));
-                Ui.Text(g, Project.SourceLabel, font, Project.Source == "modrinth" ? Theme.Accent : Theme.Gold, sourceBadge, TextAlign.CenterMiddle);
+                Ui.FillRound(g, sourceBadge, 11, Theme.Alpha(Theme.Accent, 18));
+                Ui.Text(g, Project.SourceLabel, font, Theme.Accent, sourceBadge, TextAlign.CenterMiddle);
                 Ui.DrawIcon(g, IconKind.Download, new Rectangle(104, Height - 28, 13, 13), Theme.Faint, 1.4f);
                 Ui.Text(g, Project.DownloadLabel + " 下载", Theme.Font(7.6f), Theme.Faint, new Rectangle(121, Height - 34, 150, 22), TextAlign.LeftMiddle);
             }
