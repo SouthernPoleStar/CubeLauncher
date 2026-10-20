@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Windows.Forms;
 using CubeLauncher.Core;
 
@@ -14,6 +15,7 @@ namespace CubeLauncher.UI
         private readonly InstancePill _pill;
         private readonly SmoothScrollPanel _list;
         private readonly SegmentedControl _tabs;
+        private readonly AccentButton _import;
         private readonly Timer _debounce;
         private readonly Timer _watchdog;
         private readonly List<ModProject> _projects = new List<ModProject>();
@@ -45,10 +47,21 @@ namespace CubeLauncher.UI
                     default: _kind = "mod"; break;
                 }
                 _search.Placeholder = PlaceholderFor(_kind);
+                _import.Visible = _kind == "modpack";
                 _lastContext = "";
                 StartSearch();
             };
             Controls.Add(_tabs);
+
+            _import = new AccentButton();
+            _import.Text = "导入 .mrpack";
+            _import.Icon = IconKind.Plus;
+            _import.Style = ButtonStyle.Ghost;
+            _import.Width = 142;
+            _import.Height = 38;
+            _import.Visible = false;
+            _import.Click += delegate { Main.OpenMrpackImport(); };
+            Controls.Add(_import);
 
             _refresh = new AccentButton();
             _refresh.Text = "刷新";
@@ -89,6 +102,7 @@ namespace CubeLauncher.UI
         {
             base.OnShown();
             _pill.Invalidate();
+            _import.Visible = _kind == "modpack";
             string context = ContextKey();
             if (context != _lastContext)
             {
@@ -134,6 +148,7 @@ namespace CubeLauncher.UI
         {
             int left = 28;
             _tabs.SetBounds(left, 10, 480, 38);
+            _import.SetBounds(ClientSize.Width - 170, 10, 142, 38);
             _search.SetBounds(left, 62, Math.Max(320, ClientSize.Width - 300), 40);
             _refresh.SetBounds(ClientSize.Width - 132, 62, 96, 40);
             _pill.SetBounds(left, 116, ClientSize.Width - 56, 42);
@@ -157,7 +172,7 @@ namespace CubeLauncher.UI
             InstalledVersion version = Main.SelectedVersion;
             string source = "modrinth";
             string query = _search.Value.Trim();
-            string mc = version == null ? "" : version.Minecraft;
+            string mc = version == null || _kind == "modpack" ? "" : version.Minecraft;
             string loader = version == null || _kind != "mod" ? "" : version.Loader;
             Ui.Run(this, delegate
             {
@@ -197,7 +212,7 @@ namespace CubeLauncher.UI
             InstalledVersion version = Main.SelectedVersion;
             string source = "modrinth";
             string query = _search.Value.Trim();
-            string mc = version == null ? "" : version.Minecraft;
+            string mc = version == null || _kind == "modpack" ? "" : version.Minecraft;
             string loader = version == null || _kind != "mod" ? "" : version.Loader;
             if (_more != null) { _more.Text = "加载中..."; _more.Enabled = false; }
             _watchdogRequest = token;
@@ -272,7 +287,7 @@ namespace CubeLauncher.UI
                 ModCard card = new ModCard(Main, projects[i]);
                 card.Width = _list.Width - 4;
                 card.Height = 148;
-                card.SetAction(_kind == "modpack" ? "下载" : "安装");
+                card.SetAction(_kind == "modpack" ? "导入" : "安装");
                 card.InstallRequested += delegate(object sender, EventArgs e) { InstallLatest(((ModCard)sender).Project); };
                 card.OpenRequested += delegate(object sender, EventArgs e) { OpenDetail(((ModCard)sender).Project); };
                 _list.AddControl(card);
@@ -364,7 +379,12 @@ namespace CubeLauncher.UI
         private void InstallPackLatest(ModProject project, InstalledVersion version)
         {
             bool modpack = _kind == "modpack";
-            string title = modpack ? "下载整合包" : (_kind == "shader" ? "安装光影包" : "安装材质包");
+            if (modpack)
+            {
+                ImportModpack(project, version);
+                return;
+            }
+            string title = _kind == "shader" ? "安装光影包" : "安装材质包";
             using (ProgressDialog dialog = new ProgressDialog(this, title, "正在获取 " + project.Name + " 的文件列表..."))
             {
                 dialog.Work = delegate(ProgressSink progress)
@@ -380,8 +400,54 @@ namespace CubeLauncher.UI
                     return;
                 }
             }
-            Main.Toast(modpack ? "整合包已下载到实例 modpacks 目录" : "已安装到实例 " + version.DisplayName);
+            Main.Toast("已安装到实例 " + version.DisplayName);
             Main.RefreshData();
+        }
+
+        private void ImportModpack(ModProject project, InstalledVersion version)
+        {
+            string resultId = "";
+            string temp = Path.Combine(Path.GetTempPath(), "cube-mrpack-" + Guid.NewGuid().ToString("N") + ".mrpack");
+            try
+            {
+                using (ProgressDialog dialog = new ProgressDialog(this, "导入整合包", "正在获取 " + project.Name + " 的文件列表..."))
+                {
+                    dialog.Work = delegate(ProgressSink progress)
+                    {
+                        List<ModFile> files = ModService.LoadFiles(Main.Config, project, "", "");
+                        if (files.Count == 0) throw new Exception("没有找到可下载的整合包文件");
+                        ModFile file = files[0];
+                        DownloadItem item = new DownloadItem();
+                        item.Name = file.Name;
+                        item.Destination = temp;
+                        item.Urls = Mirror.ModFileUrls(file.DownloadUrl, Main.Config.MirrorFirst);
+                        item.Sha1 = file.Sha1;
+                        item.Size = file.Size;
+                        progress.SetStage("下载整合包 " + file.FileName);
+                        Http.DownloadOne(item, progress.Token, null);
+                        resultId = MrpackImporter.Import(Main.Config, Main.Versions, temp, progress);
+                    };
+                    dialog.Run();
+                    if (dialog.Error != null)
+                    {
+                        Main.ToastError("整合包导入失败: " + dialog.Error.Message);
+                        return;
+                    }
+                }
+                if (!string.IsNullOrEmpty(resultId))
+                {
+                    Main.LoadInstalledPublic();
+                    Main.SelectedVersionId = resultId;
+                    Main.Config.SelectedVersion = resultId;
+                    App.Save();
+                    Main.RefreshData();
+                    Main.Toast("整合包已自动导入为新实例");
+                }
+            }
+            finally
+            {
+                try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+            }
         }
     }
 

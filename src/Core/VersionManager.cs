@@ -50,6 +50,7 @@ namespace CubeLauncher.Core
         public string Loader;
         public string LoaderVersion;
         public string Minecraft;
+        public string PackName = "";
         public string JsonPath;
         public string JarPath;
         public string Directory;
@@ -72,6 +73,7 @@ namespace CubeLauncher.Core
         {
             get
             {
+                if (!string.IsNullOrEmpty(PackName)) return PackName;
                 if (string.Equals(Loader, "vanilla", StringComparison.OrdinalIgnoreCase)) return Id;
                 return Minecraft + " · " + LoaderLabel + (string.IsNullOrEmpty(LoaderVersion) ? "" : " " + LoaderVersion);
             }
@@ -165,6 +167,18 @@ namespace CubeLauncher.Core
             return null;
         }
 
+        private static string ReadPackName(string instanceDir)
+        {
+            try
+            {
+                string path = Path.Combine(instanceDir, "cube-instance.json");
+                if (!File.Exists(path)) return "";
+                JMap meta = JMap.Parse(File.ReadAllText(path, Encoding.UTF8));
+                return meta.Str("name", "");
+            }
+            catch { return ""; }
+        }
+
         public List<InstalledVersion> GetInstalled()
         {
             List<InstalledVersion> result = new List<InstalledVersion>();
@@ -188,6 +202,7 @@ namespace CubeLauncher.Core
                     version.InstalledAt = Directory.GetCreationTime(dirs[i]);
                     version.Loader = DetectLoader(version.Id, json);
                     version.LoaderVersion = DetectLoaderVersion(version.Id, version.Loader);
+                    version.PackName = ReadPackName(_config.InstanceDir(version.Id));
                     if (!File.Exists(version.JarPath))
                     {
                         string parentJar = Path.Combine(_config.VersionsDir, version.Minecraft, version.Minecraft + ".jar");
@@ -231,21 +246,28 @@ namespace CubeLauncher.Core
             return "vanilla";
         }
 
+        private static string StripPackSuffix(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+            int index = value.IndexOf("-pack-", StringComparison.OrdinalIgnoreCase);
+            return index >= 0 ? value.Substring(0, index) : value;
+        }
+
         public static string DetectLoaderVersion(string id, string loader)
         {
             if (string.IsNullOrEmpty(id)) return "";
             if (string.Equals(loader, "forge", StringComparison.OrdinalIgnoreCase))
             {
                 int index = id.IndexOf("-forge-", StringComparison.OrdinalIgnoreCase);
-                if (index >= 0) return id.Substring(index + 7);
+                if (index >= 0) return StripPackSuffix(id.Substring(index + 7));
             }
             if (string.Equals(loader, "neoforge", StringComparison.OrdinalIgnoreCase))
             {
-                if (id.StartsWith("neoforge-", StringComparison.OrdinalIgnoreCase)) return id.Substring("neoforge-".Length);
+                if (id.StartsWith("neoforge-", StringComparison.OrdinalIgnoreCase)) return StripPackSuffix(id.Substring("neoforge-".Length));
                 int neoForge = id.IndexOf("-neoforge-", StringComparison.OrdinalIgnoreCase);
-                if (neoForge >= 0) return id.Substring(neoForge + 10);
+                if (neoForge >= 0) return StripPackSuffix(id.Substring(neoForge + 10));
                 int legacy = id.IndexOf("-forge-", StringComparison.OrdinalIgnoreCase);
-                if (legacy >= 0) return id.Substring(legacy + 7);
+                if (legacy >= 0) return StripPackSuffix(id.Substring(legacy + 7));
             }
             if (string.Equals(loader, "fabric", StringComparison.OrdinalIgnoreCase) && id.StartsWith("fabric-loader-", StringComparison.OrdinalIgnoreCase))
             {

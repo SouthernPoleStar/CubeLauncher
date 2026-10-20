@@ -374,6 +374,39 @@ namespace CubeLauncher.UI
             }
         }
 
+        public void OpenMrpackImport()
+        {
+            using (OpenFileDialog dialog = new OpenFileDialog())
+            {
+                dialog.Title = "导入 Modrinth 整合包";
+                dialog.Filter = "Modrinth 整合包 (*.mrpack)|*.mrpack";
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                string resultId = "";
+                using (ProgressDialog progress = new ProgressDialog(this, "导入整合包", "正在读取 .mrpack..."))
+                {
+                    progress.Work = delegate(ProgressSink sink)
+                    {
+                        resultId = MrpackImporter.Import(Config, Versions, dialog.FileName, sink);
+                    };
+                    progress.Run();
+                    if (progress.Error != null)
+                    {
+                        ToastError("导入失败: " + ShortError(progress.Error.Message));
+                        return;
+                    }
+                }
+                if (!string.IsNullOrEmpty(resultId))
+                {
+                    LoadInstalled();
+                    SelectedVersionId = resultId;
+                    Config.SelectedVersion = resultId;
+                    App.Save();
+                    RefreshData();
+                    Toast("整合包已导入为新实例: " + resultId);
+                }
+            }
+        }
+
         public void InstallAsync(InstallChoice choice)
         {
             string resultId = "";
