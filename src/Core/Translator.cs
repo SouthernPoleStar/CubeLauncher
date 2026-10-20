@@ -14,6 +14,8 @@ namespace CubeLauncher.Core
     {
         private static readonly Dictionary<string, string> Cache = new Dictionary<string, string>();
         private static readonly object Gate = new object();
+        private static readonly object RateGate = new object();
+        private static DateTime _lastRequest = DateTime.MinValue;
         private static readonly Dictionary<string, string> KnownNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             { "Just Enough Items (JEI)", "JEI 物品管理器" },
@@ -34,6 +36,15 @@ namespace CubeLauncher.Core
             { "AppleSkin", "苹果皮" }
         };
 
+        private static readonly Dictionary<string, string> KnownSummaries = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Sodium", "Minecraft 的高性能渲染引擎替代品，大幅提高帧率并减少微卡顿。" },
+            { "Iris Shaders", "现代的 Minecraft 光影包加载器，兼容现有 OptiFine 光影包。" },
+            { "Entity Culling", "使用异步路径追踪隐藏不可见的方块和实体。" },
+            { "Cloth Config API", "Minecraft 模组的配置库。" },
+            { "Just Enough Items (JEI)", "查看物品与合成配方。" }
+        };
+
         public static void TranslateProjects(List<ModProject> projects, Action<ModProject> updated)
         {
             if (projects == null || projects.Count == 0) return;
@@ -44,7 +55,7 @@ namespace CubeLauncher.Core
             }
             if (snapshot.Count == 0) return;
 
-            int count = Math.Min(4, snapshot.Count);
+            int count = Math.Min(3, snapshot.Count);
             int cursor = -1;
             int remaining = snapshot.Count;
             for (int worker = 0; worker < count; worker++)
@@ -80,6 +91,9 @@ namespace CubeLauncher.Core
             string known;
             bool hasKnown = KnownNames.TryGetValue(name, out known);
             if (hasKnown) project.Name = known;
+            string knownSummary;
+            if (KnownSummaries.TryGetValue(name, out knownSummary)) project.Summary = knownSummary;
+            if (hasKnown && !string.IsNullOrEmpty(knownSummary)) return;
             if (HasChinese(name) && (summary.Length == 0 || HasChinese(summary))) return;
 
             if (summary.Length > 260) summary = summary.Substring(0, 260);
@@ -109,6 +123,7 @@ namespace CubeLauncher.Core
             }
             try
             {
+                Throttle();
                 string url = "https://api.mymemory.translated.net/get?q=" +
                              Uri.EscapeDataString(key) + "&langpair=en%7Czh-CN";
                 string json = Http.GetText(new List<string>() { url }, 20000);
@@ -136,6 +151,16 @@ namespace CubeLauncher.Core
                 if (text[i] >= '\u4e00' && text[i] <= '\u9fff') return true;
             }
             return false;
+        }
+
+        private static void Throttle()
+        {
+            lock (RateGate)
+            {
+                int wait = 480 - (int)(DateTime.UtcNow - _lastRequest).TotalMilliseconds;
+                if (wait > 0) Thread.Sleep(wait);
+                _lastRequest = DateTime.UtcNow;
+            }
         }
     }
 }
