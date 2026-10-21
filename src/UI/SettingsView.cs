@@ -142,10 +142,10 @@ namespace CubeLauncher.UI
 
             _close = new ToggleSwitch();
             _perfGroup.Controls.Add(_close);
-            AddCaption(_perfGroup, "启动游戏后关闭启动器", 68, 192);
+            AddCaption(_perfGroup, "启动游戏后关闭启动器", 80, 192);
             _snapshots = new ToggleSwitch();
             _perfGroup.Controls.Add(_snapshots);
-            AddCaption(_perfGroup, "在版本库显示快照", 348, 192);
+            AddCaption(_perfGroup, "在版本库显示快照", 360, 192);
             AddCaption(_perfGroup, "内存分配", 20, 58);
 
             _downloadGroup = new SettingsGroup("下载与镜像", "国内源优先，失败时回退官方");
@@ -154,7 +154,7 @@ namespace CubeLauncher.UI
 
             _mirror = new ToggleSwitch();
             _downloadGroup.Controls.Add(_mirror);
-            AddCaption(_downloadGroup, "镜像加速：BMCLAPI / TUNA；Modrinth 直连官方源", 68, 64);
+            AddCaption(_downloadGroup, "镜像加速：BMCLAPI / TUNA；Modrinth 直连官方源", 80, 64);
             AddCaption(_downloadGroup, "并发下载线程", 20, 120);
 
             _threads = new DarkComboBox();

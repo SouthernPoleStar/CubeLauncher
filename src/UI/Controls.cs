@@ -685,7 +685,7 @@ namespace CubeLauncher.UI
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw | ControlStyles.UserPaint | ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
-            Size = new Size(46, 26);
+            Size = new Size(52, 30);
             Cursor = Cursors.Hand;
             _timer = new Timer();
             _timer.Interval = 16;
@@ -756,8 +756,12 @@ namespace CubeLauncher.UI
             int radius = track.Height / 2;
             Color offTop = _hover ? Color.FromArgb(225, 232, 227) : Color.FromArgb(214, 222, 216);
             Color offBottom = _hover ? Color.FromArgb(201, 210, 204) : Color.FromArgb(190, 200, 193);
-            Color top = Theme.Mix(offTop, Theme.Accent, t);
-            Color bottom = Theme.Mix(offBottom, Theme.AccentDark, t);
+            // iOS-like light mint track; the white knob still carries the
+            // contrast, so the enabled state does not need a dark fill.
+            Color onTop = Color.FromArgb(192, 237, 212);
+            Color onBottom = Color.FromArgb(157, 219, 184);
+            Color top = Theme.Mix(offTop, onTop, t);
+            Color bottom = Theme.Mix(offBottom, onBottom, t);
             if (!Enabled)
             {
                 top = Color.FromArgb(230, 234, 231);
@@ -773,13 +777,13 @@ namespace CubeLauncher.UI
             {
                 GraphicsState state = g.Save();
                 g.SetClip(path);
-                using (Pen shadow = new Pen(Color.FromArgb(t > 0.5f ? 50 : 32, 0, 0, 0), 1.4f))
+                using (Pen shadow = new Pen(Color.FromArgb(t > 0.5f ? 28 : 32, 0, 0, 0), 1.2f))
                     g.DrawLine(shadow, track.Left + 6, track.Top + 1, track.Right - 6, track.Top + 1);
                 using (Pen shine = new Pen(Color.FromArgb(38, 255, 255, 255), 1f))
                     g.DrawLine(shine, track.Left + 7, track.Bottom - 2, track.Right - 7, track.Bottom - 2);
                 g.Restore(state);
             }
-            Ui.StrokeRound(g, track, radius, Theme.Mix(Color.FromArgb(155, Theme.Border), Theme.Alpha(Theme.AccentDark, 210), t), 1f);
+            Ui.StrokeRound(g, track, radius, Theme.Mix(Color.FromArgb(155, Theme.Border), Color.FromArgb(128, 176, 148), t), 1f);
 
             int knob = track.Height - 2;
             int travel = Math.Max(1, track.Width - knob - 6);
