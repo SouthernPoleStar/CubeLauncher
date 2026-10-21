@@ -752,7 +752,7 @@ namespace CubeLauncher.UI
             g.SmoothingMode = SmoothingMode.AntiAlias;
             float t = Math.Max(0f, Math.Min(1f, _position));
 
-            Rectangle track = new Rectangle(1, 4, Width - 3, Height - 9);
+            Rectangle track = new Rectangle(1, 4, Width - 3, Height - 8);
             int radius = track.Height / 2;
             Color offTop = _hover ? Color.FromArgb(225, 232, 227) : Color.FromArgb(214, 222, 216);
             Color offBottom = _hover ? Color.FromArgb(201, 210, 204) : Color.FromArgb(190, 200, 193);
@@ -785,20 +785,27 @@ namespace CubeLauncher.UI
             }
             Ui.StrokeRound(g, track, radius, Theme.Mix(Color.FromArgb(155, Theme.Border), Color.FromArgb(128, 176, 148), t), 1f);
 
-            int knob = track.Height - 2;
-            int travel = Math.Max(1, track.Width - knob - 6);
-            int x = track.Left + 3 + (int)Math.Round(travel * t);
-            int y = track.Top + (track.Height - knob) / 2;
+            // iOS 26 style: a wide white capsule fills the track height and
+            // touches the edge it is parked against, rather than floating as
+            // a smaller circle in the middle.
+            int knobHeight = track.Height;
+            int knobWidth = Math.Min(track.Width, knobHeight + 6);
+            int travel = Math.Max(0, track.Width - knobWidth);
+            int x = track.Left + (int)Math.Round(travel * t);
+            int y = track.Top;
+            Rectangle knobRect = new Rectangle(x, y, knobWidth, knobHeight);
 
-            // Soft layered shadow under the white knob.
-            using (SolidBrush shadow = new SolidBrush(Color.FromArgb((int)(30 + 22 * t), 0, 0, 0)))
-                g.FillEllipse(shadow, x - 1, y + 2, knob + 2, knob + 2);
-            using (SolidBrush shadow = new SolidBrush(Color.FromArgb((int)(16 + 12 * t), 0, 0, 0)))
-                g.FillEllipse(shadow, x, y + 3, knob, knob);
+            using (GraphicsPath shadowClip = Ui.RoundRect(track, radius))
+            {
+                GraphicsState shadowState = g.Save();
+                g.SetClip(shadowClip);
+                using (SolidBrush shadow = new SolidBrush(Color.FromArgb((int)(22 + 12 * t), 0, 0, 0)))
+                    g.FillEllipse(shadow, x - 1, y - 1, knobWidth + 2, knobHeight + 2);
+                g.Restore(shadowState);
+            }
 
             Color knobTop = Enabled ? Color.White : Color.FromArgb(240, 242, 240);
             Color knobBottom = Enabled ? Color.FromArgb(245, 249, 246) : Color.FromArgb(220, 225, 221);
-            Rectangle knobRect = new Rectangle(x, y, knob, knob);
             using (LinearGradientBrush brush = new LinearGradientBrush(knobRect, knobTop, knobBottom, 90f))
                 g.FillEllipse(brush, knobRect);
             using (Pen border = new Pen(Color.FromArgb(Enabled ? 58 : 35, 0, 0, 0), 1f))
@@ -806,7 +813,7 @@ namespace CubeLauncher.UI
             if (Enabled)
             {
                 using (SolidBrush shine = new SolidBrush(Color.FromArgb(175, 255, 255, 255)))
-                    g.FillEllipse(shine, x + knob / 4, y + 2, Math.Max(3, knob / 3), Math.Max(2, knob / 5));
+                    g.FillEllipse(shine, x + knobWidth / 4, y + 2, Math.Max(3, knobWidth / 3), Math.Max(2, knobHeight / 5));
             }
         }
     }
