@@ -61,7 +61,7 @@ namespace CubeLauncher.UI
             if (_list == null) return;
             string query = _search == null ? "" : _search.Value.Trim();
             int filter = _filter == null ? 0 : _filter.SelectedIndex;
-            string key = query + "|" + filter + "|" + Main.Installed.Count + "|" + (Main.Versions.Manifest == null ? 0 : Main.Versions.Manifest.Count);
+            string key = query + "|" + filter + "|" + Main.Installed.Count + "|" + Main.RunningGameKey + "|" + (Main.Versions.Manifest == null ? 0 : Main.Versions.Manifest.Count);
             if (key == _lastFilter && _list.Content.Controls.Count > 0) return;
             _lastFilter = key;
             _list.Clear();
@@ -78,7 +78,9 @@ namespace CubeLauncher.UI
                 if (filter == 2) continue;
                 VersionRow row = new VersionRow();
                 row.SetInstalled(version);
+                row.SetRunning(Main.IsGameRunning(version.Id));
                 row.Launch += delegate(object sender, EventArgs e) { Main.LaunchAsync(((VersionRow)sender).VersionId); };
+                row.Close += delegate(object sender, EventArgs e) { Main.CloseGameAsync(((VersionRow)sender).VersionId); };
                 row.Delete += delegate(object sender, EventArgs e) { Main.RemoveVersion(((VersionRow)sender).Installed); };
                 row.OpenFolder += delegate(object sender, EventArgs e) { Util.OpenFolder(Main.Config.InstanceDir(((VersionRow)sender).VersionId)); };
                 row.Manage += delegate(object sender, EventArgs e) { Main.OpenInstanceManager(((VersionRow)sender).VersionId); };
@@ -139,6 +141,7 @@ namespace CubeLauncher.UI
         private readonly IconButton _delete;
         private VersionEntry _entry;
         private bool _hover;
+        private bool _running;
 
         public InstalledVersion Installed;
         public string VersionId = "";
@@ -146,6 +149,7 @@ namespace CubeLauncher.UI
 
         public event EventHandler Launch;
         public event EventHandler Install;
+        public event EventHandler Close;
         public event EventHandler Delete;
         public event EventHandler OpenFolder;
         public event EventHandler Manage;
@@ -164,7 +168,8 @@ namespace CubeLauncher.UI
             _action.Style = ButtonStyle.Subtle;
             _action.Click += delegate
             {
-                if (IsInstalled) { EventHandler h = Launch; if (h != null) h(this, EventArgs.Empty); }
+                if (IsInstalled && _running) { EventHandler h = Close; if (h != null) h(this, EventArgs.Empty); }
+                else if (IsInstalled) { EventHandler h = Launch; if (h != null) h(this, EventArgs.Empty); }
                 else { EventHandler h = Install; if (h != null) h(this, EventArgs.Empty); }
             };
             Controls.Add(_action);
@@ -207,7 +212,22 @@ namespace CubeLauncher.UI
             _folder.Visible = true;
             _delete.Visible = true;
             _manage.Visible = true;
+            SetRunning(false);
             LayoutButtons();
+            Invalidate();
+        }
+
+        public void SetRunning(bool running)
+        {
+            _running = running && IsInstalled;
+            if (IsInstalled)
+            {
+                _action.Text = _running ? "关闭" : "启动";
+                _action.Style = _running ? ButtonStyle.Danger : ButtonStyle.Subtle;
+                _action.Icon = _running ? IconKind.Power : IconKind.Play;
+                _action.IconSize = 13;
+            }
+            _action.Invalidate();
             Invalidate();
         }
 
@@ -215,6 +235,7 @@ namespace CubeLauncher.UI
         {
             _entry = entry;
             IsInstalled = false;
+            _running = false;
             VersionId = entry.Id;
             _action.Text = "安装";
             _action.Style = ButtonStyle.Ghost;
@@ -247,11 +268,17 @@ namespace CubeLauncher.UI
             Ui.StrokeRound(g, rect, 22, _hover ? Theme.Accent : Theme.OutlineVariant, 1f);
 
             string loader = IsInstalled ? Installed.Loader : "vanilla";
-            Color accent = loader == "fabric" ? Theme.Cyan : (loader == "forge" ? Theme.Gold : (loader == "quilt" ? Theme.Purple : Theme.Accent));
+            Color accent = Ui.LoaderColor(loader);
             Rectangle iconRect = new Rectangle(16, 15, 44, 44);
-            Ui.FillRound(g, iconRect, 14, Theme.Alpha(accent, 20));
-            Ui.DrawIcon(g, IsInstalled && loader != "vanilla" ? IconKind.Layers : (IsInstalled ? IconKind.Box : IconKind.Download),
-                new Rectangle(28, 27, 20, 20), accent, 1.6f);
+            if (IsInstalled)
+            {
+                Ui.DrawLoaderBadge(g, loader, iconRect);
+            }
+            else
+            {
+                Ui.FillRound(g, iconRect, 14, Theme.Alpha(accent, 20));
+                Ui.DrawIcon(g, IconKind.Download, new Rectangle(28, 27, 20, 20), accent, 1.6f);
+            }
 
             string name = IsInstalled ? Installed.DisplayName : _entry.Id;
             string meta;
@@ -262,8 +289,8 @@ namespace CubeLauncher.UI
             Ui.Text(g, name, Theme.Font(10f, FontStyle.Bold), Theme.Text, new Rectangle(74, 14, Width - 250, 24), TextAlign.LeftMiddle);
             Ui.Text(g, meta, Theme.Font(8f), Theme.Muted, new Rectangle(74, 38, Width - 250, 20), TextAlign.LeftMiddle);
 
-            string badge = IsInstalled ? "已安装" : "可安装";
-            Color badgeColor = IsInstalled ? Theme.Accent : Theme.TextSoft;
+            string badge = _running ? "运行中" : (IsInstalled ? "已安装" : "可安装");
+            Color badgeColor = (IsInstalled || _running) ? Theme.Accent : Theme.TextSoft;
             using (Font font = Theme.Font(7.5f, FontStyle.Bold))
             {
                 Size size = TextRenderer.MeasureText(badge, font);

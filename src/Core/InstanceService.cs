@@ -145,32 +145,143 @@ namespace CubeLauncher.Core
             else if (File.Exists(item.Path)) File.Delete(item.Path);
         }
 
+        /// <summary>
+        /// Export the instance as a real Modrinth pack. The launcher only
+        /// imports .mrpack, so exporting the same format is what makes the
+        /// round-trip work. Local files live in overrides/ so no download
+        /// URLs or hashes are required.
+        /// </summary>
         public static string ExportModpack(AppConfig config, string id, string destination)
         {
+            if (string.IsNullOrEmpty(destination)) throw new Exception("请选择导出位置");
             string temp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "cube-export-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(temp);
+            string overrides = System.IO.Path.Combine(temp, "overrides");
+            Directory.CreateDirectory(overrides);
             try
             {
-                string manifest = "{\"name\":" + Quote(id) + ",\"minecraft\":" + Quote(MinecraftOf(config, id)) +
-                                  ",\"loader\":" + Quote(LoaderOf(config, id)) + ",\"format\":\"cube-instance-v1\"}";
-                File.WriteAllText(System.IO.Path.Combine(temp, "manifest.json"), manifest, new UTF8Encoding(false));
+                JMap instanceMeta = ReadInstanceMeta(config, id);
+                string minecraft = instanceMeta.Str("minecraft", "");
+                if (string.IsNullOrEmpty(minecraft)) minecraft = MinecraftOf(config, id);
+                string loader = instanceMeta.Str("loader", "");
+                if (string.IsNullOrEmpty(loader)) loader = LoaderOf(config, id);
+                string loaderVersion = instanceMeta.Str("loaderVersion", "");
+                if (string.IsNullOrEmpty(loaderVersion)) loaderVersion = LoaderVersionOf(id, loader, minecraft);
+                string packName = instanceMeta.Str("name", "");
+                if (string.IsNullOrEmpty(packName)) packName = id;
+
+                Dictionary<string, object> index = new Dictionary<string, object>();
+                index["formatVersion"] = 1;
+                index["game"] = "minecraft";
+                index["versionId"] = "1.0.0";
+                index["name"] = packName;
+                index["summary"] = "由方块启动器导出的 Modrinth 整合包";
+                index["files"] = new List<object>();
+
+                Dictionary<string, object> dependencies = new Dictionary<string, object>();
+                if (!string.IsNullOrEmpty(minecraft)) dependencies["minecraft"] = minecraft;
+                if (!string.IsNullOrEmpty(loaderVersion))
+                {
+                    if (string.Equals(loader, "fabric", StringComparison.OrdinalIgnoreCase)) dependencies["fabric-loader"] = loaderVersion;
+                    else if (string.Equals(loader, "quilt", StringComparison.OrdinalIgnoreCase)) dependencies["quilt-loader"] = loaderVersion;
+                    else if (string.Equals(loader, "forge", StringComparison.OrdinalIgnoreCase)) dependencies["forge"] = loaderVersion;
+                    else if (string.Equals(loader, "neoforge", StringComparison.OrdinalIgnoreCase)) dependencies["neoforge"] = loaderVersion;
+                }
+                index["dependencies"] = dependencies;
+                File.WriteAllText(System.IO.Path.Combine(temp, "modrinth.index.json"),
+                    Json.Stringify(index), new UTF8Encoding(false));
 
                 string[] folders = new string[] { "mods", "config", "resourcepacks", "shaderpacks" };
                 for (int i = 0; i < folders.Length; i++)
                 {
                     string source = System.IO.Path.Combine(config.InstanceDir(id), folders[i]);
                     if (!Directory.Exists(source)) continue;
-                    string target = System.IO.Path.Combine(temp, folders[i]);
-                    CopyDirectory(source, target);
+                    CopyDirectory(source, System.IO.Path.Combine(overrides, folders[i]));
                 }
                 if (File.Exists(destination)) File.Delete(destination);
-                ZipFile.CreateFromDirectory(temp, destination, CompressionLevel.Optimal, false);
+                WritePack(temp, destination);
                 return destination;
             }
             finally
             {
                 try { if (Directory.Exists(temp)) Directory.Delete(temp, true); } catch { }
             }
+        }
+
+        private static void WritePack(string root, string destination)
+        {
+            using (FileStream stream = new FileStream(destination, FileMode.Create))
+            using (ZipArchive archive = new ZipArchive(stream, ZipArchiveMode.Create))
+            {
+                AddZipFile(archive, System.IO.Path.Combine(root, "modrinth.index.json"), "modrinth.index.json");
+                string overrides = System.IO.Path.Combine(root, "overrides");
+                if (!Directory.Exists(overrides)) return;
+                string[] files = Directory.GetFiles(overrides, "*", SearchOption.AllDirectories);
+                for (int i = 0; i < files.Length; i++)
+                {
+                    string relative = files[i].Substring(overrides.Length).TrimStart('\\', '/').Replace('\\', '/');
+                    AddZipFile(archive, files[i], "overrides/" + relative);
+                }
+            }
+        }
+
+        private static void AddZipFile(ZipArchive archive, string source, string entryName)
+        {
+            ZipArchiveEntry entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+            using (Stream input = File.OpenRead(source))
+            using (Stream output = entry.Open())
+                input.CopyTo(output);
+        }
+
+        private static JMap ReadInstanceMeta(AppConfig config, string id)
+        {
+            string path = System.IO.Path.Combine(config.InstanceDir(id), "cube-instance.json");
+            try
+            {
+                if (!File.Exists(path)) return new JMap();
+                return JMap.Parse(File.ReadAllText(path, Encoding.UTF8));
+            }
+            catch { return new JMap(); }
+        }
+
+        private static string LoaderVersionOf(string id, string loader, string minecraft)
+        {
+            string value = id ?? "";
+            int pack = value.IndexOf("-pack-", StringComparison.OrdinalIgnoreCase);
+            if (pack >= 0) value = value.Substring(0, pack);
+            if (string.Equals(loader, "fabric", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(loader, "quilt", StringComparison.OrdinalIgnoreCase))
+            {
+                string prefix = loader + "-loader-";
+                if (!value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return "";
+                value = value.Substring(prefix.Length);
+                string suffix = "-" + minecraft;
+                if (!string.IsNullOrEmpty(minecraft) && value.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    value = value.Substring(0, value.Length - suffix.Length);
+                return value;
+            }
+            if (string.Equals(loader, "forge", StringComparison.OrdinalIgnoreCase))
+            {
+                string prefix = minecraft + "-forge-";
+                if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return value.Substring(prefix.Length);
+                int marker = value.IndexOf("-forge-", StringComparison.OrdinalIgnoreCase);
+                return marker >= 0 ? value.Substring(marker + "-forge-".Length) : "";
+            }
+            if (string.Equals(loader, "neoforge", StringComparison.OrdinalIgnoreCase))
+            {
+                string prefix = "neoforge-";
+                if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = value.Substring(prefix.Length);
+                    string suffix = "-" + minecraft;
+                    if (!string.IsNullOrEmpty(minecraft) && value.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                        value = value.Substring(0, value.Length - suffix.Length);
+                    return value;
+                }
+                prefix = minecraft + "-neoforge-";
+                if (!string.IsNullOrEmpty(minecraft) && value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    return value.Substring(prefix.Length);
+            }
+            return "";
         }
 
         public static void InstallPack(AppConfig config, ModProject project, ModFile file, string instanceId, string kind, ProgressSink progress)

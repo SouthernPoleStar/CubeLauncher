@@ -32,3 +32,9 @@ Modrinth：
 ## 字体
 
 字体已恢复为系统字体：正文和标题使用微软雅黑 UI（回退 Microsoft YaHei / Segoe UI），不再内嵌自定义字体。
+
+## 实例与整合包
+
+- 首页点击实例会进入独立的「选择游戏」页面：左侧 Minecraft 版本，右侧加载器实例，带 Forge/Fabric/Quilt/NeoForge/原版标志；同名实例追加中文序号。
+- 实例导出为 Modrinth `.mrpack`（`modrinth.index.json` + `overrides/`），可直接重新导入。
+- 游戏运行时首页提供“关闭游戏”：先请求正常退出，超时后强制结束 JVM。

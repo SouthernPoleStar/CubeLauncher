@@ -20,6 +20,7 @@ namespace CubeLauncher.UI
         private readonly BufferedPanel _viewHost;
         private readonly Page[] _pages = new Page[] { Page.Home, Page.Versions, Page.Mods, Page.Accounts, Page.Settings };
         private readonly BaseView[] _views = new BaseView[5];
+        private GameSelectView _gameSelect;
         private Page _page = Page.Home;
 
         public readonly AppConfig Config;
@@ -30,6 +31,7 @@ namespace CubeLauncher.UI
         public JavaInfo Java;
         public bool Busy;
         public event Action DataChanged;
+        private readonly HashSet<string> _closingGames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private Timer _windowFade;
         private Timer _pageSlide;
 
@@ -38,6 +40,7 @@ namespace CubeLauncher.UI
             Config = App.Config;
             Versions = new VersionManager(Config);
             Images = new ImageCache(Config);
+            LaunchService.GameExited += OnGameExited;
 
             Text = "方块启动器";
             StartPosition = FormStartPosition.CenterScreen;
@@ -222,6 +225,7 @@ namespace CubeLauncher.UI
         public void ShowPage(Page page)
         {
             if ((int)page < 0 || (int)page >= _views.Length) return;
+            if (_gameSelect != null) _gameSelect.Visible = false;
             int oldIndex = (int)_page;
             bool changed = _page != page;
             _page = page;
@@ -302,6 +306,38 @@ namespace CubeLauncher.UI
         public void NavigateAccounts() { ShowPage(Page.Accounts); }
         public void NavigateSettings() { ShowPage(Page.Settings); }
 
+        public bool GameSelectVisible
+        {
+            get { return _gameSelect != null && _gameSelect.Visible; }
+        }
+
+        /// <summary>
+        /// The instance selector is a real second-level page, not a drop-down.
+        /// The home page stays underneath while this view is open.
+        /// </summary>
+        public void OpenGameSelect()
+        {
+            if (_gameSelect == null)
+            {
+                _gameSelect = new GameSelectView(this);
+                _gameSelect.Dock = DockStyle.Fill;
+                _gameSelect.Visible = false;
+                _viewHost.Controls.Add(_gameSelect);
+            }
+            for (int i = 0; i < _views.Length; i++) _views[i].Visible = false;
+            _gameSelect.Visible = true;
+            _gameSelect.Dock = DockStyle.Fill;
+            _gameSelect.BringToFront();
+            _gameSelect.RefreshView();
+            _topBar.SetCustomTitle("选择游戏", "点选一个实例，立刻返回首页");
+        }
+
+        public void CloseGameSelect()
+        {
+            if (_gameSelect != null) _gameSelect.Visible = false;
+            ShowPage(Page.Home);
+        }
+
         public void SetSelectedVersion(string id)
         {
             if (string.IsNullOrEmpty(id)) return;
@@ -329,6 +365,7 @@ namespace CubeLauncher.UI
                 SelectedVersionId = Installed.Count > 0 ? Installed[0].Id : "";
             UpdateSidebar();
             for (int i = 0; i < _views.Length; i++) if (_views[i] != null) _views[i].RefreshView();
+            if (_gameSelect != null && _gameSelect.Visible) _gameSelect.RefreshView();
             Action handler = DataChanged;
             if (handler != null) handler();
         }
@@ -455,9 +492,77 @@ namespace CubeLauncher.UI
             }
         }
 
+        public bool IsGameRunning(string versionId)
+        {
+            return LaunchService.IsRunning(versionId);
+        }
+
+        public string RunningGameKey
+        {
+            get
+            {
+                string[] ids = LaunchService.RunningVersionIds;
+                Array.Sort(ids, StringComparer.OrdinalIgnoreCase);
+                return string.Join(",", ids);
+            }
+        }
+
+        public void CloseGameAsync(string versionId)
+        {
+            if (string.IsNullOrEmpty(versionId)) return;
+            if (!LaunchService.IsRunning(versionId))
+            {
+                Toast("游戏当前没有运行");
+                return;
+            }
+            if (!_closingGames.Add(versionId))
+            {
+                Toast("正在关闭游戏，请稍候...");
+                return;
+            }
+            Log.Info("用户请求关闭游戏: " + versionId);
+            Toast("正在关闭游戏...");
+            Ui.Run(this, delegate
+            {
+                bool closed = LaunchService.CloseGame(versionId, 2500);
+                Ui.Post(this, delegate
+                {
+                    _closingGames.Remove(versionId);
+                    RefreshData();
+                    if (closed) Toast("游戏已关闭");
+                    else ToastError("无法关闭游戏，请稍后重试或在任务管理器中结束 Java 进程");
+                });
+            }, delegate(Exception ex)
+            {
+                Ui.Post(this, delegate
+                {
+                    _closingGames.Remove(versionId);
+                    RefreshData();
+                    ToastError("关闭游戏失败: " + ShortError(ex.Message));
+                });
+            });
+        }
+
+        private void OnGameExited(string versionId, int exitCode)
+        {
+            Ui.Post(this, delegate
+            {
+                bool requested = _closingGames.Contains(versionId);
+                _closingGames.Remove(versionId);
+                RefreshData();
+                if (!requested && exitCode != 0)
+                    ToastError("游戏异常退出（退出码 " + exitCode + "）");
+            });
+        }
+
         public void LaunchAsync(string versionId)
         {
             if (string.IsNullOrEmpty(versionId)) return;
+            if (LaunchService.IsRunning(versionId))
+            {
+                Toast("游戏已经在运行中");
+                return;
+            }
             Account account = SelectedAccount;
             if (account == null)
             {
@@ -493,6 +598,7 @@ namespace CubeLauncher.UI
             try
             {
                 LaunchService.Start(plan);
+                RefreshData();
                 Toast("游戏已启动，祝你玩得开心");
                 if (Config.CloseAfterLaunch) BeginInvoke(new Action(Close));
             }
@@ -597,6 +703,12 @@ namespace CubeLauncher.UI
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
+            if (e.KeyCode == Keys.Escape && GameSelectVisible)
+            {
+                CloseGameSelect();
+                e.Handled = true;
+                return;
+            }
             if (e.Control)
             {
                 if (e.KeyCode == Keys.D1) { ShowPage(Page.Home); e.Handled = true; }
@@ -929,6 +1041,12 @@ namespace CubeLauncher.UI
                 _page = page;
                 _title.Text = _titles[page];
                 _subtitle.Text = _subtitles[page];
+            }
+
+            public void SetCustomTitle(string title, string subtitle)
+            {
+                _title.Text = title ?? "";
+                _subtitle.Text = subtitle ?? "";
             }
 
             public void SetStatus(string text, bool online)

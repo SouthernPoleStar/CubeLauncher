@@ -341,10 +341,37 @@ namespace CubeLauncher.Core
             _process.WaitForExit();
         }
 
+        public bool WaitForExit(int milliseconds)
+        {
+            try { return _process.WaitForExit(milliseconds); }
+            catch { return false; }
+        }
+
+        public bool CloseMainWindow()
+        {
+            try { return !_process.HasExited && _process.CloseMainWindow(); }
+            catch { return false; }
+        }
+
         public void Kill()
         {
-            try { if (!_process.HasExited) _process.Kill(); }
-            catch { }
+            try
+            {
+                if (!_process.HasExited) _process.Kill();
+            }
+            catch
+            {
+                // A JVM started elevated or by another user can reject Kill().
+                // Fall back to taskkill so the launcher still has a way to stop it.
+                try
+                {
+                    ProcessStartInfo info = new ProcessStartInfo("taskkill", "/PID " + Id + " /T /F");
+                    info.UseShellExecute = false;
+                    info.CreateNoWindow = true;
+                    using (Process killer = Process.Start(info)) killer.WaitForExit(5000);
+                }
+                catch { }
+            }
         }
 
         public void Dispose()

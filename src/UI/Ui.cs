@@ -11,7 +11,7 @@ namespace CubeLauncher.UI
     {
         Home, Layers, Puzzle, User, Settings, Play, Plus, Search, Close, Minimize, Maximize, Restore,
         Folder, Refresh, Download, Trash, Check, X, Globe, Java, Memory, Shield, Log, ChevronDown,
-        ChevronRight, Edit, Box, Spark, Link, Info, Warning, Copy, External
+        ChevronRight, ChevronLeft, Edit, Box, Spark, Link, Info, Warning, Copy, External, Power
     }
 
     public enum TextAlign
@@ -321,6 +321,10 @@ namespace CubeLauncher.UI
                         g.DrawLine(pen, 6, 6, 18, 18);
                         g.DrawLine(pen, 18, 6, 6, 18);
                         break;
+                    case IconKind.Power:
+                        g.DrawArc(pen, 4.5f, 5, 15, 15, -48, 276);
+                        g.DrawLine(pen, 12, 2.5f, 12, 11);
+                        break;
                     case IconKind.Minimize:
                         g.DrawLine(pen, 5, 12, 19, 12);
                         break;
@@ -396,6 +400,9 @@ namespace CubeLauncher.UI
                     case IconKind.ChevronRight:
                         g.DrawLines(pen, new PointF[] { new PointF(9, 6), new PointF(15, 12), new PointF(9, 18) });
                         break;
+                    case IconKind.ChevronLeft:
+                        g.DrawLines(pen, new PointF[] { new PointF(15, 6), new PointF(9, 12), new PointF(15, 18) });
+                        break;
                     case IconKind.Edit:
                         g.DrawLines(pen, new PointF[] { new PointF(4, 20), new PointF(5, 15), new PointF(16, 4), new PointF(20, 8), new PointF(9, 19), new PointF(4, 20) });
                         break;
@@ -438,6 +445,101 @@ namespace CubeLauncher.UI
                         g.DrawLine(pen, 21, 3, 11, 13);
                         g.DrawLines(pen, new PointF[] { new PointF(18, 14), new PointF(18, 21), new PointF(3, 21), new PointF(3, 6), new PointF(10, 6) });
                         break;
+                }
+            }
+            g.Restore(state);
+        }
+
+        public static Color LoaderColor(string loader)
+        {
+            string value = (loader ?? "").ToLowerInvariant();
+            if (value == "fabric") return Theme.Cyan;
+            if (value == "forge") return Color.FromArgb(185, 96, 25);
+            if (value == "neoforge") return Color.FromArgb(198, 71, 36);
+            if (value == "quilt") return Theme.Purple;
+            return Theme.Accent;
+        }
+
+        /// <summary>
+        /// Compact vector marks for the supported loaders. They are drawn rather
+        /// than bundled as bitmaps so the badges stay crisp at every DPI.
+        /// </summary>
+        public static void DrawLoaderBadge(Graphics g, string loader, Rectangle bounds)
+        {
+            if (bounds.Width < 8 || bounds.Height < 8) return;
+            string value = (loader ?? "").ToLowerInvariant();
+            Color color = LoaderColor(value);
+            int radius = Math.Max(5, bounds.Width / 4);
+            FillRound(g, bounds, radius, Theme.Alpha(color, 20));
+            StrokeRound(g, bounds, radius, Theme.Alpha(color, 70), 1f);
+
+            int pad = Math.Max(3, bounds.Width / 5);
+            Rectangle logo = new Rectangle(bounds.X + pad, bounds.Y + pad,
+                Math.Max(6, bounds.Width - pad * 2), Math.Max(6, bounds.Height - pad * 2));
+            GraphicsState state = g.Save();
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TranslateTransform(logo.X, logo.Y);
+            g.ScaleTransform(logo.Width / 24f, logo.Height / 24f);
+            using (Pen pen = new Pen(color, 2f))
+            using (SolidBrush brush = new SolidBrush(Theme.Alpha(color, 48)))
+            {
+                pen.StartCap = LineCap.Round;
+                pen.EndCap = LineCap.Round;
+                pen.LineJoin = LineJoin.Round;
+                if (value == "forge" || value == "neoforge")
+                {
+                    PointF[] anvil = new PointF[]
+                    {
+                        new PointF(4, 9), new PointF(8.5f, 9), new PointF(10, 7),
+                        new PointF(14, 7), new PointF(15.5f, 9), new PointF(20, 9),
+                        new PointF(18.5f, 12), new PointF(15, 12), new PointF(13.8f, 17),
+                        new PointF(16, 19), new PointF(8, 19), new PointF(10.2f, 17),
+                        new PointF(9, 12), new PointF(5.5f, 12)
+                    };
+                    g.FillPolygon(brush, anvil);
+                    g.DrawPolygon(pen, anvil);
+                    g.DrawLine(pen, 18, 2.5f, 21, 5.5f);
+                    g.DrawLine(pen, 21, 2.5f, 18, 5.5f);
+                    if (value == "neoforge")
+                    {
+                        g.DrawLine(pen, 10, 15, 10, 10);
+                        g.DrawLine(pen, 10, 10, 14, 15);
+                        g.DrawLine(pen, 14, 15, 14, 10);
+                    }
+                }
+                else if (value == "fabric")
+                {
+                    g.DrawLine(pen, 7, 18, 17, 6);
+                    g.DrawEllipse(pen, 15.5f, 3.5f, 5, 5);
+                    g.DrawBezier(pen, 4, 20, 9, 17, 8, 12, 12, 10);
+                    g.FillEllipse(brush, 10.5f, 8.5f, 2.5f, 2.5f);
+                }
+                else if (value == "quilt")
+                {
+                    g.FillRectangle(brush, 4, 7, 10, 10);
+                    g.DrawRectangle(pen, 4, 7, 10, 10);
+                    g.FillRectangle(brush, 9, 11, 10, 10);
+                    g.DrawRectangle(pen, 9, 11, 10, 10);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        g.DrawLine(pen, 6 + i * 3, 9, 8 + i * 3, 9);
+                        g.DrawLine(pen, 11 + i * 3, 19, 13 + i * 3, 19);
+                    }
+                }
+                else
+                {
+                    PointF top = new PointF(12, 3);
+                    PointF left = new PointF(3.5f, 8);
+                    PointF right = new PointF(20.5f, 8);
+                    PointF middle = new PointF(12, 13);
+                    PointF bottom = new PointF(12, 21);
+                    g.FillPolygon(brush, new PointF[] { top, right, middle, left });
+                    g.DrawPolygon(pen, new PointF[] { top, right, middle, left });
+                    g.DrawLine(pen, 3.5f, 8, 3.5f, 16);
+                    g.DrawLine(pen, 20.5f, 8, 20.5f, 16);
+                    g.DrawLine(pen, 3.5f, 16, 12, 21);
+                    g.DrawLine(pen, 20.5f, 16, 12, 21);
+                    g.DrawLine(pen, 12, 13, 12, 21);
                 }
             }
             g.Restore(state);

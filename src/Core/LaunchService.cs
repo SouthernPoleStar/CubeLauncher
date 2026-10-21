@@ -36,6 +36,70 @@ namespace CubeLauncher.Core
     {
         public static event Action<string, int> GameExited;
 
+        private static readonly Dictionary<string, ProcessStartResult> Running =
+            new Dictionary<string, ProcessStartResult>(StringComparer.OrdinalIgnoreCase);
+        private static readonly object RunningGate = new object();
+
+        public static bool IsRunning(string versionId)
+        {
+            if (string.IsNullOrEmpty(versionId)) return false;
+            lock (RunningGate) return Running.ContainsKey(versionId);
+        }
+
+        public static int RunningCount
+        {
+            get { lock (RunningGate) return Running.Count; }
+        }
+
+        public static string[] RunningVersionIds
+        {
+            get
+            {
+                lock (RunningGate)
+                {
+                    string[] ids = new string[Running.Count];
+                    Running.Keys.CopyTo(ids, 0);
+                    return ids;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ask the game window to close, then force-kill the JVM if it does not
+        /// leave in time. Returns true once the process has exited.
+        /// </summary>
+        public static bool CloseGame(string versionId, int gracefulMs)
+        {
+            ProcessStartResult process;
+            lock (RunningGate)
+            {
+                if (!Running.TryGetValue(versionId ?? "", out process)) return false;
+            }
+            if (process == null) return false;
+
+            Log.Info("请求关闭游戏: " + versionId);
+            try
+            {
+                if (process.HasExited) return true;
+                if (process.CloseMainWindow() && process.WaitForExit(Math.Max(0, gracefulMs)))
+                {
+                    Log.Info("游戏已正常关闭: " + versionId);
+                    return true;
+                }
+                Log.Warn("游戏未在 " + gracefulMs + "ms 内退出，强制结束进程: " + versionId);
+                process.Kill();
+                bool exited = process.WaitForExit(5000);
+                if (exited) Log.Info("游戏进程已强制结束: " + versionId);
+                else Log.Warn("游戏进程仍未退出: " + versionId);
+                return exited;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("关闭游戏失败: " + ex.Message);
+                return false;
+            }
+        }
+
         public static LaunchPlan Prepare(AppConfig config, LaunchOptions options, ProgressSink progress)
         {
             if (options == null) throw new ArgumentNullException("options");
@@ -285,18 +349,21 @@ namespace CubeLauncher.Core
             ProcessStartResult process = ProcessRunner.Start(plan.JavaPath, plan.Arguments, plan.WorkingDirectory,
                 delegate(string line) { Log.Info("[MC] " + line); },
                 delegate(string line) { Log.Warn("[MC] " + line); });
+            lock (RunningGate) Running[plan.VersionId] = process;
             System.Threading.Thread watcher = new System.Threading.Thread(delegate()
             {
                 try
                 {
                     process.WaitForExit();
                     int code = process.ExitCode;
+                    lock (RunningGate) Running.Remove(plan.VersionId);
                     Log.Info("游戏进程退出，退出码 " + code);
                     Action<string, int> handler = GameExited;
                     if (handler != null) handler(plan.VersionId, code);
                 }
                 catch (Exception ex)
                 {
+                    lock (RunningGate) Running.Remove(plan.VersionId);
                     Log.Warn("等待游戏进程结束失败: " + ex.Message);
                 }
             });

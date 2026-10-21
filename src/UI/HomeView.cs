@@ -27,7 +27,12 @@ namespace CubeLauncher.UI
                 else Main.LaunchAsync(version.Id);
             };
             _hero.InstallClicked += delegate { Main.OpenInstallDialog(""); };
-            _hero.InstanceSelected += delegate(string id) { if (!string.IsNullOrEmpty(id)) Main.SetSelectedVersion(id); };
+            _hero.SelectGameClicked += delegate { Main.OpenGameSelect(); };
+            _hero.CloseGameClicked += delegate
+            {
+                InstalledVersion version = Main.SelectedVersion;
+                if (version != null) Main.CloseGameAsync(version.Id);
+            };
             _hero.ManageClicked += delegate
             {
                 InstalledVersion version = Main.SelectedVersion;
@@ -54,6 +59,7 @@ namespace CubeLauncher.UI
             InstalledVersion selected = Main.SelectedVersion;
             _hero.SetInstances(Main.Installed, selected == null ? "" : selected.Id);
             _hero.SetVersion(selected);
+            _hero.SetRunning(selected != null && Main.IsGameRunning(selected.Id));
             _versions.Value = Main.Installed.Count.ToString();
             _versions.Sub = Main.Installed.Count > 0 ? "个独立实例" : "先安装一个版本";
             if (Main.Java != null)
@@ -119,17 +125,19 @@ namespace CubeLauncher.UI
         private readonly Timer _timer;
         private readonly AccentButton _launch;
         private readonly AccentButton _install;
+        private readonly AccentButton _closeGame;
         private readonly AccentButton _manage;
-        private readonly DarkComboBox _instances;
+        private readonly InstanceButton _instances;
         private readonly List<InstalledVersion> _instanceList = new List<InstalledVersion>();
-        private bool _updatingInstances;
+        private bool _running;
         private InstalledVersion _version;
         private float _phase;
 
         public event EventHandler LaunchClicked;
         public event EventHandler InstallClicked;
+        public event EventHandler CloseGameClicked;
         public event EventHandler ManageClicked;
-        public event Action<string> InstanceSelected;
+        public event EventHandler SelectGameClicked;
 
         public HomeHero(MainForm main)
         {
@@ -157,6 +165,17 @@ namespace CubeLauncher.UI
             _install.Click += delegate { EventHandler handler = InstallClicked; if (handler != null) handler(this, EventArgs.Empty); };
             Controls.Add(_install);
 
+            _closeGame = new AccentButton();
+            _closeGame.Text = "关闭游戏";
+            _closeGame.Style = ButtonStyle.Danger;
+            _closeGame.Icon = IconKind.Power;
+            _closeGame.IconSize = 17;
+            _closeGame.Width = 142;
+            _closeGame.Height = 46;
+            _closeGame.Visible = false;
+            _closeGame.Click += delegate { EventHandler handler = CloseGameClicked; if (handler != null) handler(this, EventArgs.Empty); };
+            Controls.Add(_closeGame);
+
             _manage = new AccentButton();
             _manage.Text = "管理实例";
             _manage.Style = ButtonStyle.Ghost;
@@ -166,14 +185,12 @@ namespace CubeLauncher.UI
             _manage.Click += delegate { EventHandler handler = ManageClicked; if (handler != null) handler(this, EventArgs.Empty); };
             Controls.Add(_manage);
 
-            _instances = new DarkComboBox();
-            _instances.SetBounds(38, 184, 330, 36);
-            _instances.SelectedIndexChanged += delegate
+            _instances = new InstanceButton();
+            _instances.SetBounds(38, 182, 330, 40);
+            _instances.Click += delegate
             {
-                if (_updatingInstances) return;
-                int index = _instances.SelectedIndex;
-                if (index >= 0 && index < _instanceList.Count && InstanceSelected != null)
-                    InstanceSelected(_instanceList[index].Id);
+                EventHandler handler = SelectGameClicked;
+                if (handler != null) handler(this, EventArgs.Empty);
             };
             Controls.Add(_instances);
 
@@ -197,50 +214,74 @@ namespace CubeLauncher.UI
             {
                 _launch.Text = "安装游戏";
                 _launch.Icon = IconKind.Download;
+                _launch.Enabled = true;
+                _running = false;
+                _closeGame.Visible = false;
+            }
+            else if (_running)
+            {
+                _launch.Text = "游戏运行中";
+                _launch.Icon = IconKind.Power;
+                _launch.Enabled = false;
+                _closeGame.Visible = true;
             }
             else
             {
                 _launch.Text = "启动游戏";
                 _launch.Icon = IconKind.Play;
+                _launch.Enabled = true;
+                _closeGame.Visible = false;
             }
-            if (version != null)
-            {
-                _updatingInstances = true;
-                for (int i = 0; i < _instanceList.Count; i++)
-                    if (string.Equals(_instanceList[i].Id, version.Id, StringComparison.OrdinalIgnoreCase))
-                        _instances.SelectedIndex = i;
-                _updatingInstances = false;
-            }
+            if (version != null) _instances.SetSelected(version.Id);
+            _instances.Invalidate();
             _launch.Invalidate();
+            _closeGame.Invalidate();
+            Invalidate();
+        }
+
+        public void SetRunning(bool running)
+        {
+            _running = running;
+            if (_version == null)
+            {
+                _launch.Text = "安装游戏";
+                _launch.Icon = IconKind.Download;
+                _launch.Enabled = true;
+                _closeGame.Visible = false;
+            }
+            else if (running)
+            {
+                _launch.Text = "游戏运行中";
+                _launch.Icon = IconKind.Power;
+                _launch.Enabled = false;
+                _closeGame.Visible = true;
+            }
+            else
+            {
+                _launch.Text = "启动游戏";
+                _launch.Icon = IconKind.Play;
+                _launch.Enabled = true;
+                _closeGame.Visible = false;
+            }
+            if (_closeGame.Visible) _closeGame.BringToFront();
+            _launch.Invalidate();
+            _closeGame.Invalidate();
             Invalidate();
         }
 
         public void SetInstances(List<InstalledVersion> instances, string selectedId)
         {
             _instanceList.Clear();
-            List<object> labels = new List<object>();
-            if (instances != null)
-            {
-                for (int i = 0; i < instances.Count; i++)
-                {
-                    _instanceList.Add(instances[i]);
-                    labels.Add(instances[i].DisplayName);
-                }
-            }
-            _updatingInstances = true;
+            if (instances != null) _instanceList.AddRange(instances);
             _instances.Enabled = _instanceList.Count > 0;
-            _instances.SetItems(labels.Count == 0 ? new object[] { "尚未安装实例" } : labels.ToArray());
-            int selected = 0;
-            for (int i = 0; i < _instanceList.Count; i++)
-                if (string.Equals(_instanceList[i].Id, selectedId, StringComparison.OrdinalIgnoreCase)) selected = i;
-            if (_instanceList.Count > 0) _instances.SelectedIndex = selected;
-            _updatingInstances = false;
+            _instances.SetInstances(_instanceList, selectedId);
         }
 
         private void LayoutButtons()
         {
             _launch.Location = new Point(38, Height - 76);
             _install.Location = new Point(222, Height - 76);
+            _closeGame.Location = new Point(388, Height - 76);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -466,9 +507,7 @@ namespace CubeLauncher.UI
                     using (Pen pen = new Pen(Theme.BorderSoft, 1f))
                         g.DrawLine(pen, 18, y, Width - 18, y);
                 }
-                Color accent = version.Loader == "fabric" ? Theme.Cyan : (version.Loader == "forge" ? Theme.Gold : (version.Loader == "quilt" ? Theme.Purple : Theme.Accent));
-                Ui.FillRound(g, new Rectangle(18, y + 9, 34, 34), 9, Theme.Alpha(accent, 20));
-                Ui.DrawIcon(g, version.Loader == "vanilla" ? IconKind.Box : IconKind.Layers, new Rectangle(27, y + 18, 16, 16), accent, 1.5f);
+                Ui.DrawLoaderBadge(g, version.Loader, new Rectangle(18, y + 9, 34, 34));
                 Ui.Text(g, version.DisplayName, Theme.Font(9f, FontStyle.Bold), Theme.Text, new Rectangle(64, y + 10, Width - 180, 18), TextAlign.LeftMiddle);
                 Ui.Text(g, version.LoaderLabel + " · " + version.Id, Theme.Font(7.5f), Theme.Muted, new Rectangle(64, y + 27, Width - 180, 16), TextAlign.LeftMiddle);
                 Ui.DrawIcon(g, IconKind.Play, new Rectangle(Width - 38, y + 17, 17, 17), Theme.Accent, 1.5f);

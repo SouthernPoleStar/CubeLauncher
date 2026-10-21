@@ -188,18 +188,19 @@ namespace CubeLauncher.UI
 
         private void BuildExport()
         {
-            AddSection("导出版本为整合包", "导出 mods、config、resourcepacks、shaderpacks 和实例清单");
-            AddInfo("格式", "Cube 实例 ZIP（包含 manifest.json）", 62);
-            AddAction("选择位置并导出", 102, delegate
+            AddSection("导出为 Modrinth 整合包", "导出为可重新导入的 .mrpack，包含 overrides 与加载器依赖");
+            AddInfo("格式", "Modrinth 整合包（.mrpack）", 62);
+            AddInfo("内容", "mods、config、resourcepacks、shaderpacks", 88);
+            AddAction("选择位置并导出", 126, delegate
             {
                 SaveFileDialog dialog = new SaveFileDialog();
-                dialog.Filter = "整合包 (*.zip)|*.zip";
-                dialog.FileName = Util.SafeFileName(_instanceId) + "-modpack.zip";
+                dialog.Filter = "Modrinth 整合包 (*.mrpack)|*.mrpack";
+                dialog.FileName = Util.SafeFileName(_instanceId) + ".mrpack";
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 try
                 {
                     InstanceService.ExportModpack(_main.Config, _instanceId, dialog.FileName);
-                    _main.Toast("整合包已导出");
+                    _main.Toast("整合包已导出为 .mrpack，可直接重新导入");
                     Util.OpenFolder(Path.GetDirectoryName(dialog.FileName));
                 }
                 catch (Exception ex) { _main.ToastError("导出失败: " + ex.Message); }
