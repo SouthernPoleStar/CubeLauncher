@@ -668,7 +668,16 @@ namespace CubeLauncher.UI
 
     public class ToggleSwitch : Control
     {
+        private const int AnimationMs = 260;
+        private readonly Timer _timer;
         private bool _checked;
+        private bool _hover;
+        private float _position;
+        private float _from;
+        private float _to;
+        private float _progress = 1f;
+        private bool _userToggle;
+
         public event EventHandler CheckedChanged;
 
         public ToggleSwitch()
@@ -678,19 +687,61 @@ namespace CubeLauncher.UI
             BackColor = Color.Transparent;
             Size = new Size(46, 26);
             Cursor = Cursors.Hand;
+            _timer = new Timer();
+            _timer.Interval = 16;
+            _timer.Tick += delegate
+            {
+                _progress += 16f / AnimationMs;
+                if (_progress >= 1f)
+                {
+                    _progress = 1f;
+                    _timer.Stop();
+                }
+                _position = _from + (_to - _from) * Motion.EaseInOutCubic(_progress);
+                Invalidate();
+            };
         }
 
         public bool Checked
         {
             get { return _checked; }
-            set { _checked = value; Invalidate(); }
+            set
+            {
+                if (_checked == value) return;
+                _checked = value;
+                if (!_userToggle || !IsHandleCreated || !Visible)
+                {
+                    _timer.Stop();
+                    _position = value ? 1f : 0f;
+                    _progress = 1f;
+                    Invalidate();
+                    return;
+                }
+                _from = _position;
+                _to = value ? 1f : 0f;
+                _progress = 0f;
+                _timer.Stop();
+                _timer.Start();
+            }
         }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && _timer != null) _timer.Dispose();
+            base.Dispose(disposing);
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnEnabledChanged(EventArgs e) { Invalidate(); base.OnEnabledChanged(e); }
 
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
-            _checked = !_checked;
-            Invalidate();
+            if (!Enabled) return;
+            _userToggle = true;
+            Checked = !Checked;
+            _userToggle = false;
             EventHandler handler = CheckedChanged;
             if (handler != null) handler(this, EventArgs.Empty);
         }
@@ -699,12 +750,60 @@ namespace CubeLauncher.UI
         {
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            Rectangle track = new Rectangle(0, 4, Width - 1, Height - 9);
-            Ui.FillRound(g, track, track.Height / 2, _checked ? Theme.AccentDark : Theme.Border);
-            int knob = Height - 10;
-            int x = _checked ? Width - knob - 5 : 5;
-            using (SolidBrush brush = new SolidBrush(_checked ? Theme.Accent : Theme.TextSoft))
-                g.FillEllipse(brush, x, 5, knob, knob);
+            float t = Math.Max(0f, Math.Min(1f, _position));
+
+            Rectangle track = new Rectangle(1, 4, Width - 3, Height - 9);
+            int radius = track.Height / 2;
+            Color offTop = _hover ? Color.FromArgb(225, 232, 227) : Color.FromArgb(214, 222, 216);
+            Color offBottom = _hover ? Color.FromArgb(201, 210, 204) : Color.FromArgb(190, 200, 193);
+            Color top = Theme.Mix(offTop, Theme.Accent, t);
+            Color bottom = Theme.Mix(offBottom, Theme.AccentDark, t);
+            if (!Enabled)
+            {
+                top = Color.FromArgb(230, 234, 231);
+                bottom = Color.FromArgb(214, 220, 216);
+            }
+
+            using (GraphicsPath path = Ui.RoundRect(track, radius))
+            using (LinearGradientBrush brush = new LinearGradientBrush(track, top, bottom, 90f))
+                g.FillPath(brush, path);
+
+            // Inner shadow and bottom highlight give the track a little depth.
+            using (GraphicsPath path = Ui.RoundRect(track, radius))
+            {
+                GraphicsState state = g.Save();
+                g.SetClip(path);
+                using (Pen shadow = new Pen(Color.FromArgb(t > 0.5f ? 50 : 32, 0, 0, 0), 1.4f))
+                    g.DrawLine(shadow, track.Left + 6, track.Top + 1, track.Right - 6, track.Top + 1);
+                using (Pen shine = new Pen(Color.FromArgb(38, 255, 255, 255), 1f))
+                    g.DrawLine(shine, track.Left + 7, track.Bottom - 2, track.Right - 7, track.Bottom - 2);
+                g.Restore(state);
+            }
+            Ui.StrokeRound(g, track, radius, Theme.Mix(Color.FromArgb(155, Theme.Border), Theme.Alpha(Theme.AccentDark, 210), t), 1f);
+
+            int knob = track.Height - 2;
+            int travel = Math.Max(1, track.Width - knob - 6);
+            int x = track.Left + 3 + (int)Math.Round(travel * t);
+            int y = track.Top + (track.Height - knob) / 2;
+
+            // Soft layered shadow under the white knob.
+            using (SolidBrush shadow = new SolidBrush(Color.FromArgb((int)(30 + 22 * t), 0, 0, 0)))
+                g.FillEllipse(shadow, x - 1, y + 2, knob + 2, knob + 2);
+            using (SolidBrush shadow = new SolidBrush(Color.FromArgb((int)(16 + 12 * t), 0, 0, 0)))
+                g.FillEllipse(shadow, x, y + 3, knob, knob);
+
+            Color knobTop = Enabled ? Color.White : Color.FromArgb(240, 242, 240);
+            Color knobBottom = Enabled ? Color.FromArgb(245, 249, 246) : Color.FromArgb(220, 225, 221);
+            Rectangle knobRect = new Rectangle(x, y, knob, knob);
+            using (LinearGradientBrush brush = new LinearGradientBrush(knobRect, knobTop, knobBottom, 90f))
+                g.FillEllipse(brush, knobRect);
+            using (Pen border = new Pen(Color.FromArgb(Enabled ? 58 : 35, 0, 0, 0), 1f))
+                g.DrawEllipse(border, knobRect);
+            if (Enabled)
+            {
+                using (SolidBrush shine = new SolidBrush(Color.FromArgb(175, 255, 255, 255)))
+                    g.FillEllipse(shine, x + knob / 4, y + 2, Math.Max(3, knob / 3), Math.Max(2, knob / 5));
+            }
         }
     }
 

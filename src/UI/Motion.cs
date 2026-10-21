@@ -14,6 +14,14 @@ namespace CubeLauncher.UI
             return 1f - inv * inv * inv;
         }
 
+        public static float EaseInOutCubic(float t)
+        {
+            t = Math.Max(0f, Math.Min(1f, t));
+            if (t < 0.5f) return 4f * t * t * t;
+            float inv = -2f * t + 2f;
+            return 1f - inv * inv * inv / 2f;
+        }
+
         public static float EaseOutBack(float t, float amplitude)
         {
             t = Math.Max(0f, Math.Min(1f, t));
