@@ -275,8 +275,8 @@ namespace CubeLauncher.Core
                     try
                     {
                         if (File.Exists(temp)) File.Delete(temp);
-                        HttpWebRequest request = CreateRequest(item.Urls[u], "GET", 30000);
-                        request.ReadWriteTimeout = 30000;
+                        HttpWebRequest request = CreateRequest(item.Urls[u], "GET", 120000);
+                        request.ReadWriteTimeout = 120000;
                         // Allow slow mirrors two full minutes. Large mods can
                         // legitimately take a while on a congested connection.
                         Timer watchdog = new Timer(delegate(object state)
