@@ -562,6 +562,14 @@ namespace CubeLauncher.UI
             _install.Text = text;
         }
 
+        private static string DisplaySummary(string summary)
+        {
+            if (string.IsNullOrEmpty(summary) || summary.Length <= 120) return summary;
+            if (summary.EndsWith("…", StringComparison.Ordinal)) return summary;
+            string result = summary.Substring(0, 110).TrimEnd(' ', '，', '。', '；', '：', ',', '.', ';', ':');
+            return result + "…";
+        }
+
         protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
         protected override void OnMouseDown(MouseEventArgs e)
@@ -615,7 +623,7 @@ namespace CubeLauncher.UI
 
             Ui.Text(g, Project.Name, Theme.Font(10f, FontStyle.Bold), Theme.Text, new Rectangle(88, 16, Width - 200, 24), TextAlign.LeftMiddle);
             Ui.Text(g, "by " + Project.Author, Theme.Font(7.8f), Theme.Muted, new Rectangle(88, 38, Width - 200, 18), TextAlign.LeftMiddle);
-            Ui.Text(g, Project.Summary, Theme.Font(8.2f), Theme.TextSoft, new Rectangle(88, 59, Width - 112, 40), TextAlign.LeftTop, true);
+            Ui.Text(g, DisplaySummary(Project.Summary), Theme.Font(8.2f), Theme.TextSoft, new Rectangle(88, 59, Width - 112, 40), TextAlign.LeftTop, true);
 
             using (Font font = Theme.Font(7.6f, FontStyle.Bold))
             {

@@ -15,6 +15,11 @@ namespace CubeLauncher.Core
     /// </summary>
     public static class Translator
     {
+        // The mod card has room for roughly two lines of Chinese text. Keep
+        // ten characters in reserve so the ellipsis itself never gets clipped.
+        private const int SummaryMaxLength = 120;
+        private const int SummaryEllipsisReserve = 10;
+
         private sealed class McmodInfo
         {
             public string Name = "";
@@ -105,7 +110,11 @@ namespace CubeLauncher.Core
 
             bool hasChineseName = HasChinese(originalName);
             bool hasChineseSummary = HasChinese(summary);
-            if (hasChineseName && (summary.Length == 0 || hasChineseSummary)) return;
+            if (hasChineseName && (summary.Length == 0 || hasChineseSummary))
+            {
+                if (hasChineseSummary) project.Summary = LimitSummary(summary);
+                return;
+            }
 
             McmodInfo info = Lookup(originalName, project.Slug);
             if (info != null)
@@ -130,6 +139,7 @@ namespace CubeLauncher.Core
                 string knownSummary;
                 if (KnownSummaries.TryGetValue(originalName, out knownSummary)) project.Summary = knownSummary;
             }
+            if (HasChinese(project.Summary)) project.Summary = LimitSummary(project.Summary);
         }
 
         private static McmodInfo Lookup(string name, string slug)
@@ -288,12 +298,16 @@ namespace CubeLauncher.Core
             string summary = (body ?? "").Trim();
             summary = Regex.Replace(summary, "\\[[^\\]]*\\]", " ");
             summary = Regex.Replace(summary, "\\s+", " ").Trim();
-            if (summary.Length > 220)
-            {
-                summary = summary.Substring(0, 220).TrimEnd(' ', '，', '。', '；', '：', ',', '.', ';', ':');
-                summary += "…";
-            }
-            return summary;
+            return LimitSummary(summary);
+        }
+
+        private static string LimitSummary(string summary)
+        {
+            if (string.IsNullOrEmpty(summary) || summary.Length <= SummaryMaxLength) return summary;
+            int cut = Math.Max(1, SummaryMaxLength - SummaryEllipsisReserve);
+            string result = summary.Substring(0, cut).TrimEnd(' ', '，', '。', '；', '：', ',', '.', ';', ':');
+            if (!result.EndsWith("…", StringComparison.Ordinal)) result += "…";
+            return result;
         }
 
         private static string CleanText(string html)
