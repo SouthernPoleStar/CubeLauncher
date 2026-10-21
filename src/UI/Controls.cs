@@ -685,7 +685,7 @@ namespace CubeLauncher.UI
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw | ControlStyles.UserPaint | ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
-            Size = new Size(52, 30);
+            Size = new Size(56, 32);
             Cursor = Cursors.Hand;
             _timer = new Timer();
             _timer.Interval = 16;
@@ -754,12 +754,12 @@ namespace CubeLauncher.UI
 
             Rectangle track = new Rectangle(1, 4, Width - 3, Height - 8);
             int radius = track.Height / 2;
-            Color offTop = _hover ? Color.FromArgb(225, 232, 227) : Color.FromArgb(214, 222, 216);
-            Color offBottom = _hover ? Color.FromArgb(201, 210, 204) : Color.FromArgb(190, 200, 193);
-            // iOS-like light mint track; the white knob still carries the
-            // contrast, so the enabled state does not need a dark fill.
-            Color onTop = Color.FromArgb(192, 237, 212);
-            Color onBottom = Color.FromArgb(157, 219, 184);
+            Color offTop = _hover ? Color.FromArgb(229, 235, 230) : Color.FromArgb(218, 226, 220);
+            Color offBottom = _hover ? Color.FromArgb(195, 205, 198) : Color.FromArgb(181, 192, 184);
+            // iOS-like light mint track; the lower edge is a touch deeper so
+            // the pill reads as a rounded object rather than a flat bar.
+            Color onTop = Color.FromArgb(207, 245, 222);
+            Color onBottom = Color.FromArgb(142, 206, 168);
             Color top = Theme.Mix(offTop, onTop, t);
             Color bottom = Theme.Mix(offBottom, onBottom, t);
             if (!Enabled)
@@ -768,22 +768,68 @@ namespace CubeLauncher.UI
                 bottom = Color.FromArgb(214, 220, 216);
             }
 
+            float motion = _progress < 1f ? (float)Math.Sin(_progress * Math.PI) : 0f;
+            float hoverLift = _hover ? 1f : 0f;
+
+            // A soft green halo makes the enabled track feel lifted while the
+            // knob is travelling.
+            if (t > 0.02f || motion > 0.02f)
+            {
+                int glowAlpha = (int)((12 + 22 * motion) * t);
+                if (glowAlpha > 0)
+                {
+                    Rectangle glow = track;
+                    glow.Inflate(3, 3);
+                    using (SolidBrush brush = new SolidBrush(Color.FromArgb(glowAlpha, 43, 126, 84)))
+                        Ui.FillRound(g, glow, radius + 3, brush.Color);
+                }
+            }
+
+            // Layered drop shadow under the whole track.
+            for (int i = 1; i >= 0; i--)
+            {
+                Rectangle shadowRect = track;
+                shadowRect.Inflate(i + 1, i + 1);
+                shadowRect.Y += 2 + i;
+                int alpha = (int)((12 + (1 - i) * 14 + hoverLift * 5 + motion * 8) * (0.7f + 0.3f * t));
+                using (SolidBrush brush = new SolidBrush(Color.FromArgb(alpha, 5, 38, 22)))
+                    Ui.FillRound(g, shadowRect, radius + i + 1, brush.Color);
+            }
+
             using (GraphicsPath path = Ui.RoundRect(track, radius))
             using (LinearGradientBrush brush = new LinearGradientBrush(track, top, bottom, 90f))
                 g.FillPath(brush, path);
 
-            // Inner shadow and bottom highlight give the track a little depth.
+            // Top gloss and bottom shade turn the flat pill into a rounded,
+            // three-dimensional track.
             using (GraphicsPath path = Ui.RoundRect(track, radius))
             {
                 GraphicsState state = g.Save();
                 g.SetClip(path);
-                using (Pen shadow = new Pen(Color.FromArgb(t > 0.5f ? 28 : 32, 0, 0, 0), 1.2f))
-                    g.DrawLine(shadow, track.Left + 6, track.Top + 1, track.Right - 6, track.Top + 1);
-                using (Pen shine = new Pen(Color.FromArgb(38, 255, 255, 255), 1f))
+                using (LinearGradientBrush depth = new LinearGradientBrush(track,
+                    Color.Transparent, Color.Transparent, 90f))
+                {
+                    ColorBlend blend = new ColorBlend();
+                    blend.Colors = new Color[]
+                    {
+                        Color.FromArgb(104, 255, 255, 255),
+                        Color.Transparent,
+                        Color.FromArgb((int)(44 + 22 * t + 20 * motion), 2, 42, 24)
+                    };
+                    blend.Positions = new float[] { 0f, 0.46f, 1f };
+                    depth.InterpolationColors = blend;
+                    g.FillRectangle(depth, track);
+                }
+
+                using (Pen rim = new Pen(Color.FromArgb(92, 255, 255, 255), 1f))
+                    g.DrawLine(rim, track.Left + 6, track.Top + 1, track.Right - 6, track.Top + 1);
+                using (Pen shadow = new Pen(Color.FromArgb(t > 0.5f ? 22 : 28, 0, 0, 0), 1f))
+                    g.DrawLine(shadow, track.Left + 7, track.Top + 2, track.Right - 7, track.Top + 2);
+                using (Pen shine = new Pen(Color.FromArgb(58, 255, 255, 255), 1f))
                     g.DrawLine(shine, track.Left + 7, track.Bottom - 2, track.Right - 7, track.Bottom - 2);
                 g.Restore(state);
             }
-            Ui.StrokeRound(g, track, radius, Theme.Mix(Color.FromArgb(155, Theme.Border), Color.FromArgb(128, 176, 148), t), 1f);
+            Ui.StrokeRound(g, track, radius, Theme.Mix(Color.FromArgb(160, Theme.Border), Color.FromArgb(92, 146, 115), t), 1.2f);
 
             // iOS 26 style: a wide white capsule fills the track height and
             // touches the edge it is parked against, rather than floating as
@@ -799,7 +845,7 @@ namespace CubeLauncher.UI
             {
                 GraphicsState shadowState = g.Save();
                 g.SetClip(shadowClip);
-                using (SolidBrush shadow = new SolidBrush(Color.FromArgb((int)(22 + 12 * t), 0, 0, 0)))
+                using (SolidBrush shadow = new SolidBrush(Color.FromArgb((int)(30 + 16 * t), 0, 0, 0)))
                     g.FillEllipse(shadow, x - 1, y - 1, knobWidth + 2, knobHeight + 2);
                 g.Restore(shadowState);
             }
@@ -808,7 +854,7 @@ namespace CubeLauncher.UI
             Color knobBottom = Enabled ? Color.FromArgb(245, 249, 246) : Color.FromArgb(220, 225, 221);
             using (LinearGradientBrush brush = new LinearGradientBrush(knobRect, knobTop, knobBottom, 90f))
                 g.FillEllipse(brush, knobRect);
-            using (Pen border = new Pen(Color.FromArgb(Enabled ? 58 : 35, 0, 0, 0), 1f))
+            using (Pen border = new Pen(Color.FromArgb(Enabled ? 82 : 40, 0, 0, 0), 1f))
                 g.DrawEllipse(border, knobRect);
             if (Enabled)
             {
