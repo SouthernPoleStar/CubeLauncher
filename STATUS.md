@@ -13,7 +13,7 @@ Modrinth：
 - 直接使用 Modrinth 官方 API；
 - 模组文件直接从 `cdn.modrinth.com` 下载；
 - 必需前置模组自动安装；
-- 名称/简介通过 MyMemory 翻译为中文，带内存缓存；翻译失败时保留英文；
+- 名称/简介优先从 MC百科（mcmod.cn）搜索页读取中文，带内存缓存；无匹配或网络失败时保留英文；
 - WebP 封面通过 Windows WIC 解码并缓存。
 
 ## 游戏下载与 Java
