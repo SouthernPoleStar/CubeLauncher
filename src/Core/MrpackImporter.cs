@@ -175,7 +175,9 @@ namespace CubeLauncher.Core
                 Http.DownloadOne(item, progress.Token, delegate(long downloaded)
                 {
                     double ratio = expected > 0 ? Math.Min(1, (double)downloaded / expected) : 0.5;
-                    progress.Report(0.1 + 0.75 * ((fileIndex + ratio) / total), Path.GetFileName(relative));
+                    double fraction = 0.1 + 0.75 * ((fileIndex + ratio) / total);
+                    progress.Report(fraction, Path.GetFileName(relative) + "  " + Util.HumanBytes(downloaded) +
+                        (expected > 0 ? " / " + Util.HumanBytes(expected) : ""));
                 });
                 progress.Report(0.1 + 0.75 * (i + 1) / total, Path.GetFileName(relative));
             }
@@ -185,6 +187,7 @@ namespace CubeLauncher.Core
         {
             using (ZipArchive archive = ZipFile.OpenRead(mrpackPath))
             {
+                int total = Math.Max(1, archive.Entries.Count);
                 for (int i = 0; i < archive.Entries.Count; i++)
                 {
                     progress.ThrowIfCancelled();
@@ -199,6 +202,7 @@ namespace CubeLauncher.Core
                     if (string.IsNullOrEmpty(relative)) continue;
                     string destination = SafeJoin(instanceDir, relative);
                     Util.EnsureParent(destination);
+                    progress.Report(0.85 + 0.14 * ((double)i / total), "解压 " + entry.Name);
                     using (Stream input = entry.Open())
                     using (FileStream output = File.Create(destination))
                         input.CopyTo(output);

@@ -46,3 +46,6 @@ CurseForge：
 - 首页点击实例会进入独立的「选择游戏」页面：左侧 Minecraft 版本，右侧加载器实例，带 Forge/Fabric/Quilt/NeoForge/原版标志；同名实例追加中文序号。
 - 实例导出为 Modrinth `.mrpack`（`modrinth.index.json` + `overrides/`），可直接重新导入。
 - 游戏运行时首页提供“关闭游戏”：先请求正常退出，超时后强制结束 JVM。
+- 整合包下载改为按“空闲时间”判断超时：只有连续 60 秒收不到数据才中断，不再限制单个文件的总下载时长。
+- 下载中断后保留 `.part` 断点，下次自动用 HTTP Range 续传；服务器不支持 Range 时自动退回完整下载。
+- 解压 overrides 时同步更新进度，不再在 85% 处长时间无反馈。

@@ -268,34 +268,49 @@ namespace CubeLauncher.Core
             for (int u = 0; u < item.Urls.Count; u++)
             {
                 if (string.IsNullOrEmpty(item.Urls[u])) continue;
-                for (int attempt = 0; attempt < 2; attempt++)
+                for (int attempt = 0; attempt < 3; attempt++)
                 {
                     if (token.IsCancellationRequested) throw new OperationCanceledException(token);
                     string temp = item.Destination + ".part";
+                    long resumed = File.Exists(temp) ? new FileInfo(temp).Length : 0;
                     try
                     {
-                        if (File.Exists(temp)) File.Delete(temp);
                         HttpWebRequest request = CreateRequest(item.Urls[u], "GET", 120000);
                         request.ReadWriteTimeout = 120000;
-                        // Allow slow mirrors two full minutes. Large mods can
-                        // legitimately take a while on a congested connection.
-                        Timer watchdog = new Timer(delegate(object state)
+                        if (resumed > 0) request.AddRange(resumed);
+
+                        // Abort only when the connection stops producing bytes. A fixed
+                        // total timeout kills healthy large downloads (integrated packs
+                        // often contain a few hundred MB of mods) at the same percentage.
+                        Timer idle = new Timer(delegate(object state)
                         {
                             try { request.Abort(); }
                             catch { }
-                        }, null, 120000, System.Threading.Timeout.Infinite);
+                        }, null, 60000, System.Threading.Timeout.Infinite);
+                        long start = 0;
                         try
                         {
                             using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
                             using (Stream input = response.GetResponseStream())
-                            using (FileStream output = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.SequentialScan))
                             {
-                                Copy(input, output, 128 * 1024, bytesProgress, token);
+                                bool partial = response.StatusCode == HttpStatusCode.PartialContent;
+                                if (resumed > 0 && partial) start = resumed;
+                                if (start > 0) idle.Change(60000, System.Threading.Timeout.Infinite);
+                                FileMode mode = start > 0 ? FileMode.Append : FileMode.Create;
+                                using (FileStream output = new FileStream(temp, mode, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.SequentialScan))
+                                {
+                                    if (bytesProgress != null) bytesProgress(start);
+                                    Copy(input, output, 128 * 1024, delegate(long total)
+                                    {
+                                        idle.Change(60000, System.Threading.Timeout.Infinite);
+                                        if (bytesProgress != null) bytesProgress(start + total);
+                                    }, token);
+                                }
                             }
                         }
                         finally
                         {
-                            watchdog.Dispose();
+                            idle.Dispose();
                         }
 
                         if (!string.IsNullOrEmpty(item.Sha1))
@@ -315,14 +330,24 @@ namespace CubeLauncher.Core
                     }
                     catch (OperationCanceledException)
                     {
-                        TryDelete(temp);
+                        // Keep the .part file so the next start resumes instead of
+                        // downloading the whole file again.
                         throw;
                     }
                     catch (Exception ex)
                     {
                         last = ex;
-                        TryDelete(temp);
-                        Log.Warn("下载重试 " + ShortUrl(item.Urls[u]) + " (" + (attempt + 1) + "/2) :: " + ex.Message);
+                        WebException web = ex as WebException;
+                        HttpWebResponse webResponse = web == null ? null : web.Response as HttpWebResponse;
+                        int status = webResponse == null ? 0 : (int)webResponse.StatusCode;
+                        // ForgeCDN answers 404 when a Range header is present; fall back
+                        // to a fresh full request instead of failing the whole file.
+                        bool rangeRejected = resumed > 0 && (status == 400 || status == 403 || status == 404 || status == 416);
+                        bool corrupt = ex.Message.StartsWith("SHA1 校验失败", StringComparison.Ordinal) ||
+                                       ex.Message.StartsWith("文件大小不一致", StringComparison.Ordinal);
+                        if (rangeRejected || corrupt) TryDelete(temp);
+                        Log.Warn("下载重试 " + ShortUrl(item.Urls[u]) + " (" + (attempt + 1) + "/3) :: " + ex.Message +
+                                 (resumed > 0 && !rangeRejected && !corrupt ? "，保留 " + Util.HumanBytes(resumed) + " 断点" : ""));
                     }
                 }
             }
