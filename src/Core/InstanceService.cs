@@ -287,6 +287,7 @@ namespace CubeLauncher.Core
         public static void InstallPack(AppConfig config, ModProject project, ModFile file, string instanceId, string kind, ProgressSink progress)
         {
             if (file == null) throw new Exception("请选择要安装的文件");
+            CurseForge.EnsureDownloadUrl(file);
             string dir;
             string label;
             if (string.Equals(kind, "shader", StringComparison.OrdinalIgnoreCase))

@@ -550,7 +550,7 @@ namespace CubeLauncher.UI
             int y = 54;
             DrawRow(g, ref y, IconKind.Java, "Java 运行时", _main.JavaStatusText, _main.JavaStatusDetail, Theme.Cyan);
             DrawRow(g, ref y, IconKind.User, "当前账户", _main.SelectedAccount == null ? "未登录" : _main.SelectedAccount.Name, _main.SelectedAccount == null ? "点击添加" : _main.SelectedAccount.TypeLabel, Theme.Gold);
-            DrawRow(g, ref y, IconKind.Globe, "下载源", "镜像加速", _main.Config.MirrorFirst ? "BMCLAPI / Modrinth / TUNA" : "官方源", Theme.Accent);
+            DrawRow(g, ref y, IconKind.Globe, "下载源", _main.Config.MirrorFirst ? "BMCLAPI / 双模组源" : "官方源优先", "Modrinth / CF", Theme.Accent);
             DrawRow(g, ref y, IconKind.Memory, "分配内存", _main.Config.MemoryMb + " MB", "可在设置中调整", Theme.Purple);
         }
 

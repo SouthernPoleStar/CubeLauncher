@@ -17,6 +17,7 @@ namespace CubeLauncher
             try
             {
                 SetProcessDPIAware();
+                System.Threading.ThreadPool.SetMinThreads(64, 64);
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 EnableBrowserEmulation();

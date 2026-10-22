@@ -1,12 +1,12 @@
 # 服务状态
 
-最后更新：2026-10-20
+最后更新：2026-10-22
 
 ## 模组下载
 
-**来源：仅 Modrinth**
+**来源：Modrinth / CurseForge 双源**
 
-CurseForge 下载通道已彻底移除，启动器不再请求 `api.curseforge.com`、CFWidget 或 ForgeCDN。
+下载中心右上角可切换两个模组源，选择会写入 `config.json` 的 `ModSource`。
 
 Modrinth：
 
@@ -15,6 +15,14 @@ Modrinth：
 - 必需前置模组自动安装；
 - 名称/简介优先从 MC百科（mcmod.cn）搜索页读取中文，带内存缓存；无匹配或网络失败时保留英文；
 - WebP 封面通过 Windows WIC 解码并缓存。
+
+CurseForge：
+
+- 使用官方 Core API（`api.curseforge.com`），按游戏版本与加载器过滤；
+- 支持模组、材质包、光影搜索与安装，必需前置自动安装；
+- 文件优先使用 API 返回的下载地址，作者关闭第三方分发时回退 `edge.forgecdn.net`；
+- API Key 内置，可用环境变量 `CURSEFORGE_API_KEY` 覆盖；
+- 整合包暂不支持一键导入，仅 Modrinth `.mrpack`。
 
 ## 游戏下载与 Java
 

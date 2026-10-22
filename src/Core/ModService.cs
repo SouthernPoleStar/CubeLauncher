@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 
@@ -21,7 +22,11 @@ namespace CubeLauncher.Core
 
         public string SourceLabel
         {
-            get { return "Modrinth"; }
+            get
+            {
+                return string.Equals(Source, "curseforge", StringComparison.OrdinalIgnoreCase)
+                    ? "CurseForge" : "Modrinth";
+            }
         }
 
         public string DownloadLabel
@@ -37,6 +42,7 @@ namespace CubeLauncher.Core
 
     public sealed class ModDependency
     {
+        public string Source = "modrinth";
         public string ProjectId = "";
         public string VersionId = "";
         public string Type = "";
@@ -58,6 +64,7 @@ namespace CubeLauncher.Core
         public string Loaders = "";
         public string ReleaseType = "";
         public string Changelog = "";
+        public long FileDate;
         public List<ModDependency> Dependencies = new List<ModDependency>();
 
         public string SizeLabel
@@ -97,7 +104,56 @@ namespace CubeLauncher.Core
 
         public static ModSearchResult SearchType(AppConfig config, string source, string query, string mc, string loader, int offset, int limit, string projectType)
         {
+            if (string.Equals(source, "curseforge", StringComparison.OrdinalIgnoreCase))
+                return SearchCurseForge(config, query, mc, loader, offset, limit, projectType);
             return SearchModrinth(config, query, mc, loader, offset, limit, projectType);
+        }
+
+        private static ModSearchResult SearchCurseForge(AppConfig config, string query, string mc, string loader, int offset, int limit, string projectType)
+        {
+            string json = CurseForge.GetJson(
+                CurseForge.SearchUrl(query, mc, loader, offset, limit, projectType), 30000);
+            JMap root = JMap.Parse(json);
+            ModSearchResult result = new ModSearchResult();
+            result.Source = "curseforge";
+            result.Offset = offset;
+            result.Total = root.Map("pagination").Int("totalCount", 0);
+            List<JMap> items = root.Maps("data");
+            for (int i = 0; i < items.Count; i++)
+            {
+                ModProject project = ParseCurseForgeProject(items[i], projectType);
+                if (!string.IsNullOrEmpty(project.Id)) result.Projects.Add(project);
+            }
+            return result;
+        }
+
+        private static ModProject ParseCurseForgeProject(JMap map, string kind)
+        {
+            ModProject project = new ModProject();
+            project.Source = "curseforge";
+            project.Id = map.Str("id", "");
+            project.Slug = map.Str("slug", "");
+            project.Name = map.Str("name", "");
+            project.Summary = Clean(map.Str("summary", ""));
+            List<JMap> authors = map.Maps("authors");
+            if (authors.Count > 0) project.Author = authors[0].Str("name", "");
+            JMap logo = map.Map("logo");
+            project.IconUrl = logo.Str("thumbnailUrl", "");
+            if (string.IsNullOrEmpty(project.IconUrl)) project.IconUrl = logo.Str("url", "");
+            project.Downloads = map.Long("downloadCount", 0);
+            project.Categories = JoinNames(map.Maps("categories"));
+            project.GameVersions = CurseForgeVersions(map.Maps("latestFilesIndexes"));
+            JMap links = map.Map("links");
+            project.Website = links.Str("websiteUrl", "");
+            if (string.IsNullOrEmpty(project.Website) && !string.IsNullOrEmpty(project.Slug))
+                project.Website = "https://www.curseforge.com/minecraft/" + CurseForge.WebPath(kind) + "/" + project.Slug;
+            return project;
+        }
+
+        public static ModProject LoadCurseForgeProject(string id)
+        {
+            string json = CurseForge.GetJson(CurseForge.ModUrl(id), 20000);
+            return ParseCurseForgeProject(JMap.Parse(json).Map("data"), "mod");
         }
 
         private static ModSearchResult SearchModrinth(AppConfig config, string query, string mc, string loader, int offset, int limit, string projectType)
@@ -138,7 +194,110 @@ namespace CubeLauncher.Core
         public static List<ModFile> LoadFiles(AppConfig config, ModProject project, string mc, string loader)
         {
             if (project == null) return new List<ModFile>();
+            if (string.Equals(project.Source, "curseforge", StringComparison.OrdinalIgnoreCase))
+                return LoadCurseForgeFiles(config, project, mc, loader);
             return LoadModrinthFiles(config, project, mc, loader);
+        }
+
+        private static List<ModFile> LoadCurseForgeFiles(AppConfig config, ModProject project, string mc, string loader)
+        {
+            string json = CurseForge.GetJson(CurseForge.FilesUrl(project.Id, mc, loader), 30000);
+            List<JMap> items = JMap.Parse(json).Maps("data");
+            List<ModFile> result = new List<ModFile>();
+            for (int i = 0; i < items.Count; i++)
+            {
+                ModFile file = ParseCurseForgeFile(items[i], project);
+                if (!string.IsNullOrEmpty(mc) && !ContainsGameVersion(items[i], mc)) continue;
+                if (string.IsNullOrEmpty(file.DownloadUrl)) CurseForge.EnsureDownloadUrl(file);
+                if (!string.IsNullOrEmpty(file.DownloadUrl)) result.Add(file);
+            }
+            result.Sort(delegate(ModFile a, ModFile b) { return b.FileDate.CompareTo(a.FileDate); });
+            return result;
+        }
+
+        private static ModFile ParseCurseForgeFile(JMap item, ModProject project)
+        {
+            ModFile file = new ModFile();
+            file.Source = "curseforge";
+            file.Id = item.Str("id", "");
+            file.ModId = project.Id;
+            file.Name = item.Str("displayName", item.Str("fileName", ""));
+            file.FileName = item.Str("fileName", "");
+            file.DownloadUrl = item.Str("downloadUrl", "");
+            file.Size = item.Long("fileLength", 0);
+            file.FileDate = ParseCurseForgeDate(item.Str("fileDate", ""));
+            int release = item.Int("releaseType", 1);
+            file.ReleaseType = release == 1 ? "release" : (release == 2 ? "beta" : "alpha");
+            file.GameVersions = JoinList(item.List("gameVersions"));
+            List<JMap> hashes = item.Maps("hashes");
+            for (int i = 0; i < hashes.Count; i++)
+            {
+                if (hashes[i].Int("algo", 0) == 1) file.Sha1 = hashes[i].Str("value", "");
+            }
+            List<JMap> deps = item.Maps("dependencies");
+            for (int i = 0; i < deps.Count; i++)
+            {
+                JMap dep = deps[i];
+                int relation = dep.Int("relationType", 0);
+                if (relation != 2 && relation != 3) continue;
+                ModDependency dependency = new ModDependency();
+                dependency.Source = "curseforge";
+                dependency.ProjectId = dep.Str("modId", "");
+                dependency.Type = relation == 3 ? "required" : "optional";
+                if (!string.IsNullOrEmpty(dependency.ProjectId)) file.Dependencies.Add(dependency);
+            }
+            return file;
+        }
+
+        private static long ParseCurseForgeDate(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return 0;
+            DateTime parsed;
+            if (DateTime.TryParse(value, CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out parsed))
+                return parsed.Ticks;
+            return 0;
+        }
+
+        private static bool ContainsGameVersion(JMap item, string mc)
+        {
+            IList<object> versions = item.List("gameVersions");
+            if (versions == null) return false;
+            for (int i = 0; i < versions.Count; i++)
+            {
+                if (string.Equals(Convert.ToString(versions[i]), mc, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        private static string CurseForgeVersions(List<JMap> indexes)
+        {
+            List<string> values = new List<string>();
+            for (int i = 0; i < indexes.Count; i++)
+            {
+                string version = indexes[i].Str("gameVersion", "");
+                if (string.IsNullOrEmpty(version)) continue;
+                if (char.IsLetter(version[0])) continue;
+                bool seen = false;
+                for (int j = 0; j < values.Count; j++)
+                {
+                    if (string.Equals(values[j], version, StringComparison.OrdinalIgnoreCase)) { seen = true; break; }
+                }
+                if (!seen) values.Add(version);
+                if (values.Count >= 10) break;
+            }
+            return string.Join(", ", values.ToArray());
+        }
+
+        private static string JoinNames(List<JMap> maps)
+        {
+            List<string> values = new List<string>();
+            for (int i = 0; i < maps.Count; i++)
+            {
+                string name = maps[i].Str("name", "");
+                if (!string.IsNullOrEmpty(name)) values.Add(name);
+            }
+            return string.Join(", ", values.ToArray());
         }
 
         private static List<ModFile> LoadModrinthFiles(AppConfig config, ModProject project, string mc, string loader)
@@ -213,6 +372,7 @@ namespace CubeLauncher.Core
             ProgressSink progress, List<string> installed, HashSet<string> seen, int depth)
         {
             if (file == null || depth > 6) return;
+            CurseForge.EnsureDownloadUrl(file);
             string key = (string.IsNullOrEmpty(file.Sha1) ? file.DownloadUrl : file.Sha1);
             if (!seen.Add(key)) return;
 
@@ -258,6 +418,14 @@ namespace CubeLauncher.Core
         {
             try
             {
+                if (string.Equals(dep.Source, "curseforge", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.IsNullOrEmpty(dep.ProjectId)) return null;
+                    ModProject project = LoadCurseForgeProject(dep.ProjectId);
+                    List<ModFile> curseFiles = LoadCurseForgeFiles(config, project, mc, loader);
+                    if (curseFiles.Count > 0) return curseFiles[0];
+                    return null;
+                }
                 if (!string.IsNullOrEmpty(dep.VersionId))
                 {
                     string json = Http.GetText(Mirror.ModrinthVersion(dep.VersionId), 30000);
@@ -281,7 +449,12 @@ namespace CubeLauncher.Core
         private static string Clean(string text)
         {
             if (string.IsNullOrEmpty(text)) return "";
-            return text.Replace("\r", " ").Replace("\n", " ").Trim();
+            string value = System.Net.WebUtility.HtmlDecode(text);
+            value = System.Text.RegularExpressions.Regex.Replace(value, "<[^>]+>", " ");
+            value = value.Replace("\r", " ").Replace("\n", " ").Replace("\t", " ");
+            while (value.IndexOf("  ", StringComparison.Ordinal) >= 0)
+                value = value.Replace("  ", " ");
+            return value.Trim();
         }
 
         private static string JoinList(IList<object> list)

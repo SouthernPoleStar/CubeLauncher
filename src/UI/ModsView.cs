@@ -15,6 +15,7 @@ namespace CubeLauncher.UI
         private readonly InstancePill _pill;
         private readonly SmoothScrollPanel _list;
         private readonly SegmentedControl _tabs;
+        private readonly SegmentedControl _sourceTabs;
         private readonly AccentButton _import;
         private readonly Timer _debounce;
         private readonly Timer _watchdog;
@@ -25,12 +26,16 @@ namespace CubeLauncher.UI
         private bool _loading;
         private string _lastContext = "";
         private string _kind = "mod";
+        private string _source = "modrinth";
         private AccentButton _more;
 
         public ModsView(MainForm main) : base(main)
         {
+            _source = string.Equals(main.Config.ModSource, "curseforge", StringComparison.OrdinalIgnoreCase)
+                ? "curseforge" : "modrinth";
+
             _search = new SearchBox();
-            _search.Placeholder = "搜索 Modrinth 模组...";
+            _search.Placeholder = PlaceholderFor(_kind, _source);;
             _search.TextChangedCustom += delegate { _debounce.Stop(); _debounce.Start(); };
             Controls.Add(_search);
 
@@ -46,12 +51,27 @@ namespace CubeLauncher.UI
                     case 3: _kind = "modpack"; break;
                     default: _kind = "mod"; break;
                 }
-                _search.Placeholder = PlaceholderFor(_kind);
-                _import.Visible = _kind == "modpack";
+                _search.Placeholder = PlaceholderFor(_kind, _source);
+                _import.Visible = _kind == "modpack" && _source == "modrinth";
                 _lastContext = "";
                 StartSearch();
             };
             Controls.Add(_tabs);
+
+            _sourceTabs = new SegmentedControl();
+            _sourceTabs.Options = new string[] { "Modrinth", "CurseForge" };
+            _sourceTabs.SelectedIndex = _source == "curseforge" ? 1 : 0;
+            _sourceTabs.SelectedIndexChanged += delegate
+            {
+                _source = _sourceTabs.SelectedIndex == 1 ? "curseforge" : "modrinth";
+                Main.Config.ModSource = _source;
+                Main.Config.Save();
+                _search.Placeholder = PlaceholderFor(_kind, _source);
+                _import.Visible = _kind == "modpack" && _source == "modrinth";
+                _lastContext = "";
+                StartSearch();
+            };
+            Controls.Add(_sourceTabs);
 
             _import = new AccentButton();
             _import.Text = "导入 .mrpack";
@@ -102,7 +122,8 @@ namespace CubeLauncher.UI
         {
             base.OnShown();
             _pill.Invalidate();
-            _import.Visible = _kind == "modpack";
+            _pill.SourceLabel = SourceLabel(_source) + " 官方源";
+            _import.Visible = _kind == "modpack" && _source == "modrinth";
             string context = ContextKey();
             if (context != _lastContext)
             {
@@ -114,6 +135,8 @@ namespace CubeLauncher.UI
         public override void RefreshView()
         {
             _pill.Invalidate();
+            _pill.SourceLabel = SourceLabel(_source) + " 官方源";
+            _import.Visible = _kind == "modpack" && _source == "modrinth";
             string context = ContextKey();
             if (context != _lastContext)
             {
@@ -125,15 +148,23 @@ namespace CubeLauncher.UI
         private string ContextKey()
         {
             InstalledVersion version = Main.SelectedVersion;
-            return _kind + "|" + (version == null ? "none" : version.Id + "|" + version.Loader + "|" + version.Minecraft);
+            return _source + "|" + _kind + "|" + (version == null ? "none" : version.Id + "|" + version.Loader + "|" + version.Minecraft);
         }
 
-        private static string PlaceholderFor(string kind)
+        private static string PlaceholderFor(string kind, string source)
         {
-            if (kind == "resourcepack") return "搜索材质包，例如 Faithful、PureBDcraft...";
-            if (kind == "shader") return "搜索光影包，例如 Complementary、BSL...";
-            if (kind == "modpack") return "搜索整合包，例如 Fabulously Optimized...";
-            return "搜索 Modrinth 模组...";
+            bool curse = string.Equals(source, "curseforge", StringComparison.OrdinalIgnoreCase);
+            string site = curse ? "CurseForge" : "Modrinth";
+            if (kind == "resourcepack") return "搜索 " + site + " 材质包，例如 Faithful、PureBDcraft...";
+            if (kind == "shader") return "搜索 " + site + " 光影包，例如 Complementary、BSL...";
+            if (kind == "modpack") return "搜索 " + site + " 整合包，例如 Fabulously Optimized...";
+            return "搜索 " + site + " 模组...";
+        }
+
+        private static string SourceLabel(string source)
+        {
+            return string.Equals(source, "curseforge", StringComparison.OrdinalIgnoreCase)
+                ? "CurseForge" : "Modrinth";
         }
 
         private static string CategoryName(string kind)
@@ -148,6 +179,7 @@ namespace CubeLauncher.UI
         {
             int left = 28;
             _tabs.SetBounds(left, 10, 480, 38);
+            _sourceTabs.SetBounds(left + 494, 10, 208, 38);
             _import.SetBounds(ClientSize.Width - 170, 10, 142, 38);
             _search.SetBounds(left, 62, Math.Max(320, ClientSize.Width - 300), 40);
             _refresh.SetBounds(ClientSize.Width - 132, 62, 96, 40);
@@ -170,10 +202,23 @@ namespace CubeLauncher.UI
             _watchdog.Stop();
             _watchdog.Start();
             InstalledVersion version = Main.SelectedVersion;
-            string source = "modrinth";
+            string source = _source;
             string query = _search.Value.Trim();
             string mc = version == null || _kind == "modpack" ? "" : version.Minecraft;
             string loader = version == null || _kind != "mod" ? "" : version.Loader;
+            _pill.SourceLabel = SourceLabel(source) + " 官方源";
+            _pill.Invalidate();
+            if (_kind == "modpack" && source == "curseforge")
+            {
+                _watchdog.Stop();
+                _loading = false;
+                _list.Clear();
+                EmptyState hint = new EmptyState(IconKind.Puzzle, "CurseForge 整合包暂不支持一键导入",
+                    "请切换到 Modrinth 搜索整合包，或使用「导入 .mrpack」安装本地整合包。");
+                hint.Width = _list.Width - 4;
+                _list.AddControl(hint);
+                return;
+            }
             Ui.Run(this, delegate
             {
                 ModSearchResult result = ModService.SearchType(Main.Config, source, query, mc, loader, 0, 20, _kind);
@@ -210,7 +255,7 @@ namespace CubeLauncher.UI
             int token = _request;
             int offset = _projects.Count;
             InstalledVersion version = Main.SelectedVersion;
-            string source = "modrinth";
+            string source = _source;
             string query = _search.Value.Trim();
             string mc = version == null || _kind == "modpack" ? "" : version.Minecraft;
             string loader = version == null || _kind != "mod" ? "" : version.Loader;
@@ -263,7 +308,7 @@ namespace CubeLauncher.UI
 
         private void ShowLoading()
         {
-            LoadingCard loading = new LoadingCard("正在从 Modrinth 获取" + CategoryName(_kind) + "...");
+            LoadingCard loading = new LoadingCard("正在从 " + SourceLabel(_source) + " 获取" + CategoryName(_kind) + "...");
             loading.Width = _list.Width - 4;
             _list.AddControl(loading);
         }
@@ -461,6 +506,8 @@ namespace CubeLauncher.UI
     {
         private readonly MainForm _main;
 
+        public string SourceLabel = "Modrinth 官方源";
+
         public InstancePill(MainForm main)
         {
             _main = main;
@@ -496,10 +543,10 @@ namespace CubeLauncher.UI
                 Theme.Font(7.8f), Theme.Muted, new Rectangle(40 + Math.Min(260, Width / 2), 0, 280, Height), TextAlign.LeftMiddle);
             using (Font font = Theme.Font(7.6f, FontStyle.Bold))
             {
-                Size size = TextRenderer.MeasureText("Modrinth 官方源", font);
-                Rectangle badge = new Rectangle(Width - 180, (Height - 24) / 2, size.Width + 18, 24);
+                Size size = TextRenderer.MeasureText(SourceLabel, font);
+                Rectangle badge = new Rectangle(Width - 190, (Height - 24) / 2, size.Width + 18, 24);
                 Ui.FillRound(g, badge, 12, Theme.Alpha(Theme.Accent, 18));
-                Ui.Text(g, "Modrinth 官方源", font, Theme.Accent, badge, TextAlign.CenterMiddle);
+                Ui.Text(g, SourceLabel, font, Theme.Accent, badge, TextAlign.CenterMiddle);
             }
         }
 
@@ -627,11 +674,14 @@ namespace CubeLauncher.UI
 
             using (Font font = Theme.Font(7.6f, FontStyle.Bold))
             {
-                Rectangle sourceBadge = new Rectangle(16, Height - 34, 76, 22);
+                Size badgeSize = TextRenderer.MeasureText(Project.SourceLabel, font);
+                int badgeWidth = Math.Max(76, badgeSize.Width + 18);
+                Rectangle sourceBadge = new Rectangle(16, Height - 34, badgeWidth, 22);
                 Ui.FillRound(g, sourceBadge, 11, Theme.Alpha(Theme.Accent, 18));
                 Ui.Text(g, Project.SourceLabel, font, Theme.Accent, sourceBadge, TextAlign.CenterMiddle);
-                Ui.DrawIcon(g, IconKind.Download, new Rectangle(104, Height - 28, 13, 13), Theme.Faint, 1.4f);
-                Ui.Text(g, Project.DownloadLabel + " 下载", Theme.Font(7.6f), Theme.Faint, new Rectangle(121, Height - 34, 150, 22), TextAlign.LeftMiddle);
+                int x = sourceBadge.Right + 12;
+                Ui.DrawIcon(g, IconKind.Download, new Rectangle(x, Height - 28, 13, 13), Theme.Faint, 1.4f);
+                Ui.Text(g, Project.DownloadLabel + " 下载", Theme.Font(7.6f), Theme.Faint, new Rectangle(x + 17, Height - 34, 150, 22), TextAlign.LeftMiddle);
             }
             Ui.DrawIcon(g, IconKind.ChevronRight, new Rectangle(Width - 26, Height - 27, 12, 12), Theme.Faint, 1.4f);
         }

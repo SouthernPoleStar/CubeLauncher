@@ -1,11 +1,11 @@
 # 方块启动器 CubeLauncher
 
-一个面向 Windows 的 Minecraft 启动器，目标是在 **.NET Framework 4.0** 上提供现代、顺滑的体验：下载原版与模组加载器、连接 Modrinth、支持微软正版 / 第三方皮肤站 / 离线账户、自动下载 Java，并用国内镜像优先的方式完成所有网络请求。
+一个面向 Windows 的 Minecraft 启动器，目标是在 **.NET Framework 4.0** 上提供现代、顺滑的体验：下载原版与模组加载器、连接 Modrinth / CurseForge、支持微软正版 / 第三方皮肤站 / 离线账户、自动下载 Java，并用国内镜像优先的方式完成所有网络请求。
 
 ![方块启动器图标](assets/icon-preview.png)
 
 > [!NOTE]
-> 模组下载仅支持 **Modrinth**；CurseForge 下载通道已移除。
+> 下载中心支持 **Modrinth** 与 **CurseForge** 两个模组源，可在页面右上角一键切换；CurseForge 使用内置 API Key。
 
 ## 界面预览
 
@@ -23,10 +23,10 @@
   - NeoForge：从 NeoForged CDN 获取版本与安装器，20.4/1.21.1 及 1.20.1 旧版 47.1 均可安装，自动预下载依赖。
   - Quilt：从 Quilt Meta 安装，兼容 Fabric 模组生态。
 - **两大模组站**
-  - Modrinth 搜索、项目详情、版本文件选择、一键安装。
+  - Modrinth：搜索、项目详情、版本文件选择、一键安装；支持 WebP 封面（WIC 解码）。
+  - CurseForge：官方 Core API 搜索、项目详情、文件列表、必需前置自动安装；无法直连的文件自动回退 ForgeCDN。
   - 搜索结果中的模组名称与简介优先从 **MC百科（mcmod.cn）** 获取中文，带内存缓存；MC百科不可用或无匹配时保留英文，不影响搜索。
-  - 支持 Modrinth 的 WebP 封面；通过 Windows WIC 解码，不依赖额外图片库。
-  - 直接连接 Modrinth 官方 API 读取元数据并下载文件；必需前置模组自动安装。
+  - 两个源都直接读取官方 API；必需前置模组自动安装。
 - **账户系统**
   - 微软正版：微软官方设备代码登录，Xbox Live / XSTS / Minecraft Services，支持正版皮肤与披风。
   - 第三方皮肤站：兼容 authlib-injector / Yggdrasil，内置 LittleSkin 预设，启动时自动注入皮肤。
@@ -41,7 +41,7 @@
 - **切页防闪烁**：旧页面在新页滑入期间保留为底层，新页面使用不透明背景，避免 Dock 切换时露出白屏/闪烁。
 - **账户**：微软正版、LittleSkin/Yggdrasil、离线账户；微软账户会自动下载皮肤并截取头部作为头像。
 - **实例管理**：从版本库或首页进入，管理模组、材质包、光影包、世界、截图，打开目录，并导出为可重新导入的 `.mrpack` 整合包（`modrinth.index.json` + `overrides/`）。
-- **下载中心**：顶部横向二级菜单切换模组、材质包、光影和整合包，统一搜索 Modrinth；模组安装到 `mods`，材质/光影安装到当前实例，整合包会下载 `.mrpack` 并自动导入为新实例。
+- **下载中心**：顶部横向二级菜单切换模组、材质包、光影和整合包，右上角切换 Modrinth / CurseForge；模组安装到 `mods`，材质/光影安装到当前实例，Modrinth 整合包会下载 `.mrpack` 并自动导入为新实例（CurseForge 整合包暂不支持一键导入）。
 - **整合包导入**：下载中心「整合包」页支持选择本地 `.mrpack`；自动安装对应 Minecraft/加载器、下载清单内文件、解压 overrides，并创建独立实例（名称写入 `cube-instance.json`）。
 - **实例选择**：首页点击实例卡片会进入独立的「选择游戏」页面（不是下拉菜单）；左侧按 Minecraft 版本分组，右侧列出 Forge / Fabric / Quilt / NeoForge / 原版实例并显示对应标志，点击实例立即切换并返回首页；同名实例自动追加中文序号（一、二…）。
 - **关闭游戏**：游戏运行后首页显示「关闭游戏」按钮，先请求窗口正常退出，超时后强制结束 JVM，避免直接点窗口关闭导致卡死。
@@ -138,7 +138,7 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
 ## 已知限制
 
 - 微软登录使用设备代码流程和 Prism Launcher 的公共客户端 ID；如果微软调整权限策略，可在 `config.json` 中替换为自己的 Azure 公共客户端 ID。
-- CurseForge 下载通道已彻底移除，模组来源仅保留 Modrinth。
+- CurseForge 整合包（`manifest.json` 格式）暂不支持一键导入；整合包请使用 Modrinth `.mrpack`。CurseForge API Key 内置在 `src/Core/CurseForge.cs`，也可通过环境变量 `CURSEFORGE_API_KEY` 覆盖。
 - Fabric 启动前自动补装 Fabric API 仅针对检测到“非 Sodium”模组且没有 API 的情况；如果手动安装了错误版本，请删除旧 API 后重试。
 - Forge 安装依赖官方安装器执行映射合并与二进制补丁；安装器本身从 BMCLAPI 下载，库优先走 BMCLAPI，失败时回退官方。
 - 仅支持 Windows。Java 版本按版本 JSON 的 `javaVersion.majorVersion` 选择（通常 8 / 17 / 21）。
