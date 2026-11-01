@@ -352,6 +352,7 @@ namespace CubeLauncher.UI
         {
             Account account = Config.FindAccount(id);
             if (account == null) return;
+            if (Config.IsAccountLocked(account)) return;
             Config.SelectedAccountId = id;
             App.Save();
             UpdateSidebar();
@@ -567,6 +568,12 @@ namespace CubeLauncher.UI
             if (account == null)
             {
                 ToastError("请先添加一个账户");
+                ShowPage(Page.Accounts);
+                return;
+            }
+            if (Config.IsAccountLocked(account))
+            {
+                ToastError(AppConfig.PremiumRequiredMessage);
                 ShowPage(Page.Accounts);
                 return;
             }

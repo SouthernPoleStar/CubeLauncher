@@ -32,6 +32,7 @@
   - 第三方皮肤站：兼容 authlib-injector / Yggdrasil，内置 LittleSkin 预设，启动时自动注入皮肤。
   - 离线账户：本地生成离线 UUID，适合单机、局域网与测试。
   - 令牌使用 Windows DPAPI 加密保存。
+  - **使用规则**：离线账户与第三方皮肤站需要先完成一次微软正版登录才能使用；登录一次后写入 `config.json` 的 `PremiumUnlocked` 永久解锁，之后即使删除正版账户也不再上锁。未解锁时这两种账户无法新建、无法选中，也不能用于启动游戏。
 - **自动 Java**：检测系统 Java；缺失时从清华 TUNA 的 Adoptium 目录下载 Temurin JDK，自动解压到启动器目录。
 - **启动**：解析版本继承、规则、参数占位符、natives 解压、资源对象、日志配置、authlib-injector，支持 Forge 的模块路径参数。
 - **前置修复**：Forge 使用基础版本名替换 `${version_name}`，确保 `-DignoreList` 包含 `1.20.1.jar`，避免模块重复导出崩溃；Fabric/Quilt 检测到模组但缺少 Fabric API 时，启动前自动安装兼容版本。

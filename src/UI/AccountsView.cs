@@ -59,7 +59,10 @@ namespace CubeLauncher.UI
             _accounts.Clear();
             if (Main.Config.Accounts.Count == 0)
             {
-                EmptyState empty = new EmptyState(IconKind.User, "还没有账户", "添加微软正版、第三方皮肤站或离线账户。");
+                string hint = Main.Config.PremiumUnlocked
+                    ? "添加微软正版、第三方皮肤站或离线账户。"
+                    : "请先添加微软正版账户；完成一次正版登录后可使用皮肤站与离线账户。";
+                EmptyState empty = new EmptyState(IconKind.User, "还没有账户", hint);
                 empty.Width = _accounts.Width - 4;
                 _accounts.AddControl(empty);
                 return;
@@ -72,6 +75,11 @@ namespace CubeLauncher.UI
                 card.SelectRequested += delegate(object sender, EventArgs e)
                 {
                     AccountCard source = (AccountCard)sender;
+                    if (Main.Config.IsAccountLocked(source.Account))
+                    {
+                        Main.ToastError(AppConfig.PremiumRequiredMessage);
+                        return;
+                    }
                     Main.SelectAccount(source.Account.Id);
                     BuildAccounts();
                 };
@@ -115,6 +123,7 @@ namespace CubeLauncher.UI
     {
         private readonly AccentButton _select;
         private readonly IconButton _delete;
+        private readonly bool _locked;
         private Image _head;
         private bool _selected;
         public Account Account;
@@ -125,6 +134,7 @@ namespace CubeLauncher.UI
         {
             Account = account;
             _selected = selected;
+            _locked = main.Config.IsAccountLocked(account);
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw | ControlStyles.UserPaint | ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
@@ -140,11 +150,11 @@ namespace CubeLauncher.UI
             }
 
             _select = new AccentButton();
-            _select.Text = selected ? "当前账户" : "设为默认";
+            _select.Text = selected ? "当前账户" : (_locked ? "已锁定" : "设为默认");
             _select.Style = selected ? ButtonStyle.Subtle : ButtonStyle.Ghost;
             _select.Width = 92;
             _select.Height = 30;
-            _select.Enabled = !selected;
+            _select.Enabled = !selected && !_locked;
             _select.Click += delegate { EventHandler h = SelectRequested; if (h != null) h(this, EventArgs.Empty); };
             Controls.Add(_select);
 
@@ -185,8 +195,9 @@ namespace CubeLauncher.UI
             Color accent = Account.IsMicrosoft ? Theme.Cyan : (Account.IsYggdrasil ? Theme.Purple : Theme.Gold);
             Ui.DrawAvatar(g, new Rectangle(18, 22, 48, 48), Account.Name, accent, _selected, _head);
             Ui.Text(g, Account.Name, Theme.Font(10.5f, FontStyle.Bold), Theme.Text, new Rectangle(82, 18, Width - 250, 24), TextAlign.LeftMiddle);
-            Ui.Text(g, Account.TypeLabel + (Account.IsYggdrasil && !string.IsNullOrEmpty(Account.AuthServer) ? " · " + ShortHost(Account.AuthServer) : ""),
-                Theme.Font(8f), Theme.Muted, new Rectangle(82, 42, Width - 250, 18), TextAlign.LeftMiddle);
+            string subtitle = Account.TypeLabel + (Account.IsYggdrasil && !string.IsNullOrEmpty(Account.AuthServer) ? " · " + ShortHost(Account.AuthServer) : "");
+            if (_locked) subtitle += " · 需要正版解锁";
+            Ui.Text(g, subtitle, Theme.Font(8f), _locked ? Theme.Gold : Theme.Muted, new Rectangle(82, 42, Width - 250, 18), TextAlign.LeftMiddle);
             Ui.Text(g, Account.CleanUuid, Theme.Mono(7.3f), Theme.Faint, new Rectangle(82, 61, Width - 250, 16), TextAlign.LeftMiddle);
         }
 
@@ -224,12 +235,14 @@ namespace CubeLauncher.UI
             Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
             Ui.FillRound(g, rect, 14, Theme.Card);
             Ui.StrokeRound(g, rect, 14, Theme.BorderSoft, 1f);
+            bool unlocked = _main.Config.PremiumUnlocked;
             Ui.Text(g, "账户类型", Theme.Font(10.5f, FontStyle.Bold), Theme.Text, new Rectangle(18, 14, Width - 36, 26), TextAlign.LeftMiddle);
-            Ui.Text(g, "三种方式，覆盖所有玩法", Theme.Font(7.8f), Theme.Muted, new Rectangle(18, 38, Width - 36, 20), TextAlign.LeftMiddle);
+            Ui.Text(g, unlocked ? "三种方式，覆盖所有玩法" : "离线与皮肤站需先登录一次正版",
+                Theme.Font(7.8f), unlocked ? Theme.Muted : Theme.Gold, new Rectangle(18, 38, Width - 36, 20), TextAlign.LeftMiddle);
 
-            DrawType(g, 72, IconKind.Shield, "微软正版", "使用微软账户登录，支持正版皮肤与披风。", Theme.Cyan);
-            DrawType(g, 138, IconKind.Globe, "皮肤站", "LittleSkin 等 Yggdrasil 站点，自动注入皮肤。", Theme.Purple);
-            DrawType(g, 204, IconKind.User, "离线账户", "无需联网，输入用户名即可开始游戏。", Theme.Gold);
+            DrawType(g, 72, IconKind.Shield, "微软正版", unlocked ? "使用微软账户登录，支持正版皮肤与披风。" : "使用微软账户登录，登录一次即可解锁全部方式。", Theme.Cyan);
+            DrawType(g, 138, IconKind.Globe, "皮肤站", "LittleSkin 等 Yggdrasil 站点，自动注入皮肤。" + (unlocked ? "" : "（需先登录正版）"), Theme.Purple);
+            DrawType(g, 204, IconKind.User, "离线账户", "无需联网，输入用户名即可开始游戏。" + (unlocked ? "" : "（需先登录正版）"), Theme.Gold);
 
             Rectangle link = new Rectangle(18, 252, Width - 36, 28);
             Ui.FillRound(g, link, 8, Theme.Alpha(Theme.Accent, 12));

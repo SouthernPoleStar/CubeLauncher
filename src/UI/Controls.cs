@@ -542,6 +542,7 @@ namespace CubeLauncher.UI
     public class SegmentedControl : Control
     {
         private string[] _options = new string[0];
+        private bool[] _disabled = new bool[0];
         private int _selected;
         private float _slideX;
         private bool _slideReady;
@@ -581,12 +582,24 @@ namespace CubeLauncher.UI
             set { _options = value ?? new string[0]; if (_selected >= _options.Length) _selected = 0; _slideReady = false; Invalidate(); }
         }
 
+        public bool[] Disabled
+        {
+            get { return _disabled; }
+            set { _disabled = value ?? new bool[0]; Invalidate(); }
+        }
+
+        private bool IsDisabled(int index)
+        {
+            return _disabled != null && index >= 0 && index < _disabled.Length && _disabled[index];
+        }
+
         public int SelectedIndex
         {
             get { return _selected; }
             set
             {
                 if (value < 0 || value >= _options.Length) return;
+                if (IsDisabled(value)) return;
                 if (_selected == value) return;
                 _selected = value;
                 StartSlide();
@@ -638,6 +651,7 @@ namespace CubeLauncher.UI
             if (_options.Length == 0) return;
             int width = Width / _options.Length;
             int index = Math.Min(_options.Length - 1, Math.Max(0, e.X / Math.Max(1, width)));
+            if (IsDisabled(index)) return;
             SelectedIndex = index;
         }
 
@@ -661,7 +675,8 @@ namespace CubeLauncher.UI
             for (int i = 0; i < _options.Length; i++)
             {
                 Rectangle item = new Rectangle(4 + i * itemWidth, 4, itemWidth, Height - 8);
-                Ui.Text(g, _options[i], Font, i == _selected ? Theme.OnSecondaryContainer : Theme.Muted, item, TextAlign.CenterMiddle);
+                Color text = i == _selected ? Theme.OnSecondaryContainer : (IsDisabled(i) ? Theme.Faint : Theme.Muted);
+                Ui.Text(g, _options[i], Font, text, item, TextAlign.CenterMiddle);
             }
         }
     }

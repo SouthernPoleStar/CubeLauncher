@@ -64,6 +64,12 @@ namespace CubeLauncher.Core
         }
 
         [ScriptIgnore]
+        public bool RequiresPremium
+        {
+            get { return IsOffline || IsYggdrasil; }
+        }
+
+        [ScriptIgnore]
         public string TypeLabel
         {
             get

@@ -105,11 +105,14 @@ namespace CubeLauncher.Core
             if (options == null) throw new ArgumentNullException("options");
             if (string.IsNullOrEmpty(options.VersionId)) throw new Exception("请选择一个版本");
             if (options.Account == null) throw new Exception("请先选择一个账户");
+            if (config.IsAccountLocked(options.Account))
+                throw new Exception(AppConfig.PremiumRequiredMessage + "（当前账户: " + options.Account.Name + "）");
 
             VersionManager manager = new VersionManager(config);
             ResolvedVersion resolved = manager.Resolve(options.VersionId, progress);
             progress.SetStage("检查账户登录状态");
             AuthService.EnsureReady(options.Account, config, progress);
+            if (options.Account.IsMicrosoft) config.MarkPremiumUnlocked(options.Account);
             App.Save();
 
             progress.SetStage("准备 Java " + resolved.JavaMajor);

@@ -10,6 +10,7 @@ namespace CubeLauncher.UI
     public sealed class AccountDialog : DarkDialog
     {
         private readonly MainForm _main;
+        private readonly bool _unlocked;
         private readonly SegmentedControl _method;
         private readonly Panel _microsoftPanel;
         private readonly Panel _yggdrasilPanel;
@@ -29,8 +30,11 @@ namespace CubeLauncher.UI
         {
             _main = main;
 
+            _unlocked = main.Config.PremiumUnlocked;
+
             _method = new SegmentedControl();
             _method.Options = new string[] { "微软正版", "第三方皮肤站", "离线账户" };
+            if (!_unlocked) _method.Disabled = new bool[] { false, true, true };
             _method.SetBounds(28, 80, 644, 38);
             _method.SelectedIndexChanged += delegate { SwitchPanel(); };
             Controls.Add(_method);
@@ -141,6 +145,19 @@ namespace CubeLauncher.UI
             register.Location = new Point(192, 238);
             register.Click += delegate { Util.OpenUrl("https://littleskin.cn/auth/register"); };
             _yggdrasilPanel.Controls.Add(register);
+
+            if (!_unlocked) _yggdrasilPanel.Controls.Add(MakeLockNote(292));
+        }
+
+        private Label MakeLockNote(int y)
+        {
+            Label note = new Label();
+            note.Text = "需要先完成一次微软正版登录，之后即可永久解锁此方式。\n请在上方切换到「微软正版」完成一次登录。";
+            note.AutoSize = false;
+            note.ForeColor = Theme.Gold;
+            note.Font = Theme.Font(7.8f);
+            note.SetBounds(20, y, 600, 40);
+            return note;
         }
 
         private void BuildOfflinePanel()
@@ -178,6 +195,8 @@ namespace CubeLauncher.UI
             note.Font = Theme.Font(7.8f);
             note.SetBounds(20, 238, 500, 22);
             _offlinePanel.Controls.Add(note);
+
+            if (!_unlocked) _offlinePanel.Controls.Add(MakeLockNote(272));
         }
 
         private void SwitchPanel()
@@ -187,8 +206,16 @@ namespace CubeLauncher.UI
             _offlinePanel.Visible = _method.SelectedIndex == 2;
             _status.ForeColor = Theme.Muted;
             if (_method.SelectedIndex == 0) _status.Text = "支持正版账户，使用微软官方设备代码登录。";
-            else if (_method.SelectedIndex == 1) _status.Text = "请先在皮肤站创建角色，然后使用邮箱和密码登录。";
-            else _status.Text = "离线账户仅用于本地或离线服务器。";
+            else if (_method.SelectedIndex == 1)
+            {
+                _status.Text = _unlocked ? "请先在皮肤站创建角色，然后使用邮箱和密码登录。" : AppConfig.PremiumRequiredMessage;
+                if (!_unlocked) _status.ForeColor = Theme.Gold;
+            }
+            else
+            {
+                _status.Text = _unlocked ? "离线账户仅用于本地或离线服务器。" : AppConfig.PremiumRequiredMessage;
+                if (!_unlocked) _status.ForeColor = Theme.Gold;
+            }
         }
 
         private void MicrosoftLogin()
@@ -202,6 +229,12 @@ namespace CubeLauncher.UI
 
         private void YggdrasilLogin()
         {
+            if (!_unlocked)
+            {
+                _status.ForeColor = Theme.Gold;
+                _status.Text = AppConfig.PremiumRequiredMessage;
+                return;
+            }
             string server = _ysServer.Value.Trim();
             string user = _ysUser.Value.Trim();
             string password = _ysPassword.Value;
@@ -231,6 +264,12 @@ namespace CubeLauncher.UI
 
         private void CreateOffline()
         {
+            if (!_unlocked)
+            {
+                _status.ForeColor = Theme.Gold;
+                _status.Text = AppConfig.PremiumRequiredMessage;
+                return;
+            }
             string name = _offlineName.Value.Trim();
             if (!System.Text.RegularExpressions.Regex.IsMatch(name, "^[A-Za-z0-9_]{3,16}$"))
             {
@@ -243,6 +282,7 @@ namespace CubeLauncher.UI
 
         private void Finish(Account account)
         {
+            if (_main.Config.MarkPremiumUnlocked(account)) App.Save();
             ResultAccount = account;
             DialogResult = DialogResult.OK;
             Close();

@@ -20,7 +20,12 @@ namespace CubeLauncher.Core
         public int DownloadThreads = 6;
         public string MicrosoftClientId = AuthService.DefaultMicrosoftClientId;
         public bool AutoDownloadJava = true;
+        public bool PremiumUnlocked = false;
+        public string PremiumUnlockedName = "";
+        public long PremiumUnlockedAt = 0;
         public List<Account> Accounts = new List<Account>();
+
+        public const string PremiumRequiredMessage = "离线账户与第三方皮肤站需要先完成一次微软正版登录才能使用";
 
         [ScriptIgnore]
         public string RootDir = "";
@@ -77,6 +82,37 @@ namespace CubeLauncher.Core
             return Path.Combine(InstanceDir(versionId), "screenshots");
         }
 
+        public Account FirstPremiumAccount()
+        {
+            if (Accounts == null) return null;
+            for (int i = 0; i < Accounts.Count; i++)
+                if (Accounts[i] != null && Accounts[i].IsMicrosoft) return Accounts[i];
+            return null;
+        }
+
+        public bool HasPremiumAccount()
+        {
+            return FirstPremiumAccount() != null;
+        }
+
+        public bool IsAccountLocked(Account account)
+        {
+            if (account == null) return false;
+            if (PremiumUnlocked) return false;
+            return account.IsOffline || account.IsYggdrasil;
+        }
+
+        public bool MarkPremiumUnlocked(Account account)
+        {
+            if (account == null || !account.IsMicrosoft) return false;
+            if (PremiumUnlocked) return false;
+            PremiumUnlocked = true;
+            PremiumUnlockedName = account.Name ?? "";
+            PremiumUnlockedAt = Util.UnixNow;
+            Log.Info("已完成正版验证，离线账户与第三方皮肤站已解锁: " + PremiumUnlockedName);
+            return true;
+        }
+
         public Account FindAccount(string id)
         {
             if (Accounts == null) return null;
@@ -100,10 +136,7 @@ namespace CubeLauncher.Core
             config.ConfigPath = Path.Combine(root, "config.json");
             config.GameDir = Path.Combine(root, "minecraft");
             config.Accounts = new List<Account>();
-            Account offline = Account.CreateOffline("Steve");
-            offline.Selected = true;
-            config.Accounts.Add(offline);
-            config.SelectedAccountId = offline.Id;
+            config.SelectedAccountId = "";
             return config;
         }
 
@@ -138,14 +171,20 @@ namespace CubeLauncher.Core
             if (string.IsNullOrEmpty(config.MicrosoftClientId) ||
                 string.Equals(config.MicrosoftClientId, "00000000402b5328", StringComparison.OrdinalIgnoreCase))
                 config.MicrosoftClientId = AuthService.DefaultMicrosoftClientId;
-            if (config.Accounts.Count == 0)
+            if (config.Accounts == null) config.Accounts = new List<Account>();
+            if (!config.PremiumUnlocked)
             {
-                Account offline = Account.CreateOffline("Steve");
-                config.Accounts.Add(offline);
-                config.SelectedAccountId = offline.Id;
+                Account premium = config.FirstPremiumAccount();
+                if (premium != null)
+                {
+                    config.PremiumUnlocked = true;
+                    config.PremiumUnlockedName = premium.Name ?? "";
+                    if (config.PremiumUnlockedAt <= 0) config.PremiumUnlockedAt = Util.UnixNow;
+                    Log.Info("检测到已保存的微软正版账户，视为已完成正版验证: " + config.PremiumUnlockedName);
+                }
             }
             if (config.FindAccount(config.SelectedAccountId) == null)
-                config.SelectedAccountId = config.Accounts[0].Id;
+                config.SelectedAccountId = config.Accounts.Count > 0 ? config.Accounts[0].Id : "";
             return config;
         }
 
